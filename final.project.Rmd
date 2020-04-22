@@ -1,0 +1,169 @@
+---
+title: "Final Project"
+author: "Ryan Collins and Alex Clegg"
+date: "4/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+Here are the packages that will be needed for this assignment:
+
+```{r packages}
+library(readr)
+library(readxl)
+library(tidyverse)
+library(tidymodels)
+library(httr)
+library(jsonlite)
+library(tidycensus)
+library(mgsub)
+```
+
+Working on reading in the dataset and merging the datasets together.
+```{r reading in the data and merging:}
+#first for the disaster loan-size:
+
+sba_2012 <- read_excel("data/SBA_Disaster_Loan_Data_FY12_simple.xlsx",
+                       col_types = c("numeric", "numeric", "numeric", 
+                                     "text", "text", "numeric", "text", 
+                                     "text", "numeric", "numeric", "numeric", 
+                                     "numeric", "numeric", "numeric", 
+                                     "numeric"))
+
+print(list(sba_2012$`Damaged Property Zip Code`))
+
+#now for the sba for the SBA zipcode level data:
+#to further target the zipcodes I've copied the list from the sba_2012 dataset and plug it into the API requerst.
+
+#step 1:
+url <- "https://api.census.gov/data/2012/zbp?get=EMP,EMPSZES,ESTAB,GEO_ID,PAYANN,PAYQTR1&for=zip%20code:19132,1915,1901,1902,1907,51501,51503,51526,51640,51557,51561,51648,51653,51654,785,795,718,767,33330,33324,33135,33325,22923,22701,22401,22407,22942,22942,22485,23093,23093,23117,22960,23153,22741,22974,63301,22302,22304,22205,22015,22026,22041,22125,22191,33076,33315,33174,33064,33305,39428,47454,17552,21903,21904,73103,73118,74864,74801,74804,94704,91801,91001,93301,91008,90026,90042,91103,91104,91106,91107,91024,91030,30165,77006,77011,77021,77081,77378,89511,89521,35215,35215,35126,35173,40006,41006,41007,41301,40701,41030,41030,40729,41425,40322,41222,41222,42748,41051,41224,41226,40741,41230,41159,41063,41465,41256,40387,41472,28741,66431,47126,47023,47141,47163,47165,47177,99574,99664,99686,99686,99686,65615,65616,65622,65686,26301,25511,26554,26354,25534,26582,37311,37343,37385,25614,25601,25637,25639,25649,97352,97302,97317,76017,75219,75126,76058,75134,75160,73840,73801,70520,70526,70507,70634,1752,31792,48503,48507,48532,48532,48473,32346,32320,34205,34207,34208,34601,34602,32011,32322,33765,33767,33767,32327,34429,33525,33706,32328,32034,31043,32043,34607,34690,34446,34667,34669,34450,32205,32208,32209,32210,32223,32250,32024,32025,32055,33852,34639,34461,32052,32060,32064,32071,32062,32068,34651,34652,34653,34654,34655,32071,34221,32346,34668,34668,33708,34695,33701,33705,34232,34236,34240,34243,33772,32358,34606,34608,34609,33706,33702,33704,33706,33705,32091,32359,33602,33604,33606,33612,33615,34689,34689,33960,34607,32094,33544,32096,88312,88316,88316,88341,88345,55707,55720,55803,55805,55806,55807,55811,55733,54880,46802,46803,45891,59072,80512,80809,80904,80907,80909,80918,80919,80922,80816,80524,80829,31639,37643,37650,37601,37602,37604,37659,37694,47660,55707,55711,55720,55731,55802,55803,55804,55805,55806,55807,55808,55810,55811,55812,55733,55736,55609,55707,55767,55795,32501,32506,74010,74044,73068,27870,70068,70420,70421,70114,70422,70422,70032,70512,70094,70514,70036,70036,70802,70805,70806,70808,70810,70811,70812,70814,70815,70816,70820,70053,70037,70037,70427,70038,70039,70040,70040,70094,70041,70050,70431,39426,70043,70344,70723,70433,70435,70072,70345,70345,70085,70706,70726,70030,70030,70047,70363,70049,70123,70050,70436,70437,70538,70438,70438,70733,70345,70354,70051,70734,70355,70356,70357,70737,70052,70358,70359,70359,70053,70054,70056,70056,70057,70403,70401,70403,70404,70123,70124,70056,70058,70059,70072,70123,70360,70363,70443,70002,70067,7012170062,70065,70461,70445,70068,70372,70445,70067,70076,70068,70769,70373,70754,70374,70446,70070,70071,70447,70474,70448,70471,70072,70072,70006,70449,70075,70001,70002,70003,70005,70006,70010,70131,70001,70377,70068,70380,70076,70124,70390,70118,70117,70116,70121,70125,70017,70112,70113,70114,70115,70116,70117,70118,70119,70122,70123,70124,70125,70126,70127,70128,70129,70130,70131,70166,70078,70079,70116,70452,70339,70764,70083,70082,70082,70454,70083,70767,70083,70083,70769,70394,70084,70123,70455,70774,70085,70043,70775,70086,70395,70458,70458,70459,70460,70461,70462,70774,70085,70085,70433,70086,70582,70087,70085,70056,70072,70301,70301,70466,70041,70090,70030,70038,70041,70091,70092,70785,70591,70058,70094,70096,39520,39520,39520,39530,39531,39532,39629,39601,39426,39558,39429,39540,39330,39483,39553,39501,39503,39507,39401,39213,39556,39643,39440,39560,39452,39452,39455,39652,39648,39562,39563,39564,39580,39564,39567,39581,39501,39571,39572,39466,39470,39355,39661,39574,39360,70458,39363,39667,39667,39565,39180,39183,39576,39577,39669,92227,8341,8225,8244,25801,25311,25387,25044,25831,26217,25840,25976,25879,25901,26261,24970,25303,26651&key=ec901d907020e0a48a8035d41c1b35c94c85468e"
+#We should think about what industries we'd want (and also limit zipcodes).
+
+#I ALSO NEED TO FIGURE OUT A BETTER WAY TO DEAL WITH MY CENSUS KEY
+
+#step 2:
+sbazip_json <- GET(url = url,
+                   user_agent("Georgetown University Student (rdc74@georgetown.edu)"))
+
+#step 3:
+#cheeck to see if there's an error status 
+http_status(sbazip_json)
+#200s are good so we're okay 
+
+sbazip_json <- content(sbazip_json, as = "text")
+sba_zip <- fromJSON(sbazip_json)
+sba_zip <-as.data.frame((sba_zip))
+
+#fix the variable name problem in zipcode level data:
+header.true <- function(df) {
+  names(df) <- as.character(unlist(df[1,]))
+  df[-1,]
+}
+sba_zip <- header.true(sba_zip)
+
+#need to rename zipcode variables to match in sba_2012 dataset:
+sba_2012 <- sba_2012 %>%
+  rename(zipcode = `Damaged Property Zip Code`)
+
+glimpse(sba_zip) #to see what the variable is actually named
+sba_zip <- sba_zip %>%
+  rename(zipcode = `zip code`)
+
+#see the sba_zip data are all factors so need to change those:
+sba_zip <- sba_zip %>%
+  mutate(
+    EMP = as.numeric(as.character(EMP)),
+    EMPSZES = as.numeric(as.character(EMPSZES)),
+    ESTAB = as.numeric(as.character(ESTAB)),
+    PAYANN = as.numeric(as.character(PAYANN)),
+    PAYQTR1 = as.numeric(as.character(PAYQTR1)),
+    zipcode = as.numeric(as.character(zipcode))
+  )
+
+#Now need to group_by sba_zip to average specific variables:
+sba_zip_group <- sba_zip %>% 
+  group_by(zipcode)  %>%
+  summarize(
+    emp = mean(EMP),
+    empszes = mean(EMPSZES), #not sure what happened with this and why it's 216.3?
+    estab = mean(ESTAB),
+    payann = mean(PAYANN),
+    payqtr1 = mean(PAYQTR1))
+
+#try merging them:
+sba_merged <- sba_2012 %>% 
+  left_join(sba_zip_group, by = "zipcode")
+
+#checking to see how everything looks:
+glimpse(sba_merged)
+table(is.na(sba_merged$`Approved Amount Content`))
+table(is.na(sba_merged$`Approved Amount EIDL`))
+table(is.na(sba_merged$emp))
+table(sba_merged$empszes)
+
+#Now will wan to read in data for fips codes:
+ZIP_COUNTY_FIPS_2012_12 <- read_csv("ZIP-COUNTY-FIPS_2012-12.csv")
+
+glimpse(ZIP_COUNTY_FIPS_2012_12) #checking on names
+glimpse(sba_merged) #also checking on names
+
+#changing names for target variable (zipcode)
+ZIP_COUNTY_FIPS_2012_12 <- ZIP_COUNTY_FIPS_2012_12 %>%
+  rename(zipcode = ZIP) %>%
+  select(zipcode, STCOUNTYFP)
+
+sba_merged <- sba_merged %>% 
+  left_join(ZIP_COUNTY_FIPS_2012_12, by = "zipcode") #804 obs
+
+sba_merged <- sba_merged %>%
+  mutate(duplicate = duplicated(sba_merged$`Total Verified Loss`)) %>%
+  filter(duplicate == !(TRUE)) %>%
+  select(-duplicate)
+
+#now to separate out the state and county fips codes:
+sba_merged <- sba_merged %>%
+  mutate(stateFIPS = substr(STCOUNTYFP, 1, 2), 
+         countyFIPS = substr(STCOUNTYFP, 3, 5))
+
+#For reading in county level data:
+
+url1 <-"https://api.census.gov/data/2012/sbo?get=ETH_GROUP,ETH_GROUP_TTL,FIRMPDEMP,GEO_ID,RCPPDEMP,SEX,SEX_TTL,VET_GROUP,VET_GROUP_TTL&for=county:*&key=ec901d907020e0a48a8035d41c1b35c94c85468e"
+
+#step 2:
+sbacounty_json <- GET(url = url1,
+                   user_agent("Georgetown University Student (rdc74@georgetown.edu)"))
+
+#step 3:
+#cheeck to see if there's an error status 
+http_status(sbacounty_json)
+#200s are good so we're okay 
+
+sbacounty_json <- content(sbacounty_json, as = "text")
+sba_county <- fromJSON(sbacounty_json)
+sba_county <-as.data.frame((sba_county))
+
+#fix column titles: 
+sba_county <- header.true(sba_county)
+
+sba_county <- sba_county %>%
+  rename(countyFIPS = county,
+         stateFIPS = state) %>%
+  mutate(countyFIPS = as.character(countyFIPS),
+         stateFIPS = as.character(stateFIPS))
+
+glimpse(sba_county)
+glimpse(sba_merged)
+
+sba_merged_1 <- sba_merged %>% 
+  left_join(sba_county, by = c("countyFIPS" = "countyFIPS",
+                               "stateFIPS" = "stateFIPS"))
+
+sba_merged_1 <- sba_merged_1 %>%
+  mutate(duplicate = duplicated(sba_merged_1$`Total Verified Loss`)) %>%
+  filter(duplicate == !(TRUE)) %>%
+  select(-duplicate)
+```
