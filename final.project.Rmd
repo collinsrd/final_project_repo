@@ -19,12 +19,10 @@ library(tidyverse)
 library(tidymodels)
 library(httr)
 library(jsonlite)
-library(tidycensus)
-library(mgsub)
 ```
 
 Working on reading in the dataset and merging the datasets together.
-```{r reading in the data and merging:}
+```{r reading in the data and merging, warning = F}
 #first for the disaster loan-size:
 
 sba_2012 <- read_excel("data/SBA_Disaster_Loan_Data_FY12_simple.xlsx",
@@ -33,8 +31,6 @@ sba_2012 <- read_excel("data/SBA_Disaster_Loan_Data_FY12_simple.xlsx",
                                      "text", "numeric", "numeric", "numeric", 
                                      "numeric", "numeric", "numeric", 
                                      "numeric"))
-
-print(list(sba_2012$`Damaged Property Zip Code`))
 
 #now for the sba for the SBA zipcode level data:
 #to further target the zipcodes I've copied the list from the sba_2012 dataset and plug it into the API requerst.
@@ -100,10 +96,6 @@ sba_merged <- sba_2012 %>%
 
 #checking to see how everything looks:
 glimpse(sba_merged)
-table(is.na(sba_merged$`Approved Amount Content`))
-table(is.na(sba_merged$`Approved Amount EIDL`))
-table(is.na(sba_merged$emp))
-table(sba_merged$empszes)
 
 #Now will wan to read in data for fips codes:
 ZIP_COUNTY_FIPS_2012_12 <- read_csv("ZIP-COUNTY-FIPS_2012-12.csv")
@@ -155,15 +147,32 @@ sba_county <- sba_county %>%
   mutate(countyFIPS = as.character(countyFIPS),
          stateFIPS = as.character(stateFIPS))
 
-glimpse(sba_county)
-glimpse(sba_merged)
-
-sba_merged_1 <- sba_merged %>% 
+#merging county and disaster numbers:
+sba_merged_final <- sba_merged %>% 
   left_join(sba_county, by = c("countyFIPS" = "countyFIPS",
                                "stateFIPS" = "stateFIPS"))
 
-sba_merged_1 <- sba_merged_1 %>%
-  mutate(duplicate = duplicated(sba_merged_1$`Total Verified Loss`)) %>%
+#cleaning out the duplicates:
+sba_merged_final <- sba_merged_final %>%
+  mutate(duplicate = duplicated(sba_merged_final$`Total Verified Loss`),
+         RCPPDEMP = as.numeric(as.character(RCPPDEMP))) %>%
   filter(duplicate == !(TRUE)) %>%
   select(-duplicate)
+
+glimpse(sba_merged_final)
+table(is.na(sba_merged_final$`Approved Amount Content`))
+table(is.na(sba_merged_final$`Approved Amount EIDL`))
+table(is.na(sba_merged_final$emp))
+table(is.na(sba_merged_final$empszes))
+table(is.na(sba_merged_final$RCPPDEMP))
+table(is.na(sba_merged_final$FIRMPDEMP))
+
+```
+
+```{r checking out the data}
+ggplot(sba_merged_final, mapping = aes(y = RCPPDEMP, x = `Total Approved Loan Amount`)) +
+  geom_point() +
+  geom_smooth() + 
+  scale_y_continuous(limits = c(0, 6000000)) +
+  scale_x_continuous(limits = c(0, 500000)) 
 ```
