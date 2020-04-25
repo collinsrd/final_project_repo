@@ -1,0 +1,231 @@
+---
+title: "Final Project"
+author: "Ryan Collins and Alex Clegg"
+date: "4/18/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+Here are the packages that will be needed for this assignment:
+
+```{r packages}
+library(readr)
+library(readxl)
+library(tidyverse)
+library(tidymodels)
+library(httr)
+library(jsonlite)
+source("R/header.true.R")
+source("R/sba_api_2012.R")
+source("R/sba_api_2017.R")
+source("R/sba_api_2007.R")
+```
+
+Working on reading in the dataset and merging the datasets together.
+```{r reading in the data and merging, warning = F}
+#first for the disaster loan-size:
+
+sba_sandy <- read_excel("data/SBA_Disaster_Loan_Data_Superstorm_Sandy_simple.xlsx", 
+                        col_types = c("numeric", "numeric", "numeric",
+                                      "text", "text", "numeric", "text", 
+                                      "text", "numeric", "numeric", "numeric", 
+                                      "numeric", "numeric", "numeric", 
+                                      "numeric"))
+
+#adding column for major disaster variable
+sba_sandy <- sba_sandy %>%
+  mutate(MBay_effect = 1)
+
+sba_2008 <- read_excel("data/SBA_Disaster_Loan_Data_FY08_simple.xlsx", 
+                        col_types = c("numeric", "numeric", "numeric",
+                                      "text", "text", "numeric", "text", 
+                                      "text", "numeric", "numeric", "numeric", 
+                                      "numeric", "numeric", "numeric", 
+                                      "numeric"))
+sba_2009 <- read_excel("data/SBA_Disaster_Loan_Data_FY09_simple.xlsx", 
+                        col_types = c("numeric", "numeric", "numeric",
+                                      "text", "text", "numeric", "text", 
+                                      "text", "numeric", "numeric", "numeric", 
+                                      "numeric", "numeric", "numeric", 
+                                      "numeric"))
+sba_2010 <- read_excel("data/SBA_Disaster_Loan_Data_FY10_simple.xlsx", 
+                        col_types = c("numeric", "numeric", "numeric",
+                                      "text", "text", "numeric", "text", 
+                                      "text", "numeric", "numeric", "numeric", 
+                                      "numeric", "numeric", "numeric", 
+                                      "numeric"))
+sba_2011 <- read_excel("data/SBA_Disaster_Loan_Data_FY11_simple.xlsx", 
+                        col_types = c("numeric", "numeric", "numeric",
+                                      "text", "text", "numeric", "text", 
+                                      "text", "numeric", "numeric", "numeric", 
+                                      "numeric", "numeric", "numeric", 
+                                      "numeric"))
+sba_2012 <- read_excel("data/SBA_Disaster_Loan_Data_FY12_simple.xlsx",
+                       col_types = c("numeric", "numeric", "numeric", 
+                                     "text", "text", "numeric", "text", 
+                                     "text", "numeric", "numeric", "numeric", 
+                                     "numeric", "numeric", "numeric", 
+                                     "numeric"))
+sba_2013 <- read_excel("data/SBA_Disaster_Loan_Data_FY13_simple.xlsx", 
+                        col_types = c("numeric", "numeric", "numeric",
+                                      "text", "text", "numeric", "text", 
+                                      "text", "numeric", "numeric", "numeric", 
+                                      "numeric", "numeric", "numeric", 
+                                      "numeric"))
+sba_2014 <- read_excel("data/SBA_Disaster_Loan_Data_FY14_simple.xlsx",
+                       col_types = c("numeric", "numeric", "numeric", 
+                                     "text", "text", "numeric", "text", 
+                                     "text", "numeric", "numeric", "numeric", 
+                                     "numeric", "numeric", "numeric", 
+                                     "numeric"))
+sba_2015 <- read_excel("data/SBA_Disaster_Loan_Data_FY15_simple.xlsx",
+                       col_types = c("numeric", "numeric", "numeric", 
+                                     "text", "text", "numeric", "text", 
+                                     "text", "numeric", "numeric", "numeric", 
+                                     "numeric", "numeric", "numeric", 
+                                     "numeric"))
+sba_2016 <- read_excel("data/SBA_Disaster_Loan_Data_FY16_simple.xlsx",
+                       col_types = c("numeric", "numeric", "numeric", 
+                                     "text", "text", "numeric", "text", 
+                                     "text", "numeric", "numeric", "numeric", 
+                                     "numeric", "numeric", "numeric", 
+                                     "numeric"))
+sba_2017 <- read_excel("data/SBA_Disaster_Loan_Data_FY17_simple.xlsx",
+                       col_types = c("numeric", "numeric", "numeric", 
+                                     "text", "text", "numeric", "text", 
+                                     "text", "numeric", "numeric", "numeric", 
+                                     "numeric", "numeric", "numeric", 
+                                     "numeric"))
+#adding column for major disaster variable:
+x = c("FL", "TX", "PR", "VI")
+sba_2017 <- sba_2017 %>%
+  mutate(
+MBay_effect = ifelse(sba_2017$`Damaged Property State Code`%in% x, 1 ,0))
+
+sba_2018 <- read_excel("data/SBA_Disaster_Loan_Data_FY18_simple.xlsx",
+                       col_types = c("numeric", "numeric", "numeric", 
+                                     "text", "text", "numeric", "text", 
+                                     "text", "numeric", "numeric", "numeric", 
+                                     "numeric", "numeric", "numeric", 
+                                     "numeric"))
+
+#binding columns:
+sba_merged_all<- bind_rows(sba_sandy, sba_2008, sba_2009, sba_2010, sba_2011, sba_2012, sba_2013,
+                           sba_2014, sba_2015, sba_2016, sba_2017, sba_2018)
+
+#fill in the remainder of sandy variable:
+sba_merged_all$MBay_effect[is.na(sba_merged_all$MBay_effect)] <- 0
+
+#renaming zipcode:
+sba_merged_all <- sba_merged_all %>%
+  rename(zipcode = `Damaged Property Zip Code`)
+
+#Now will wan to read in data for fips codes:
+ZIP_COUNTY_FIPS_2012_12 <- read_csv("data/ZIP-COUNTY-FIPS_2012-12.csv")
+
+glimpse(ZIP_COUNTY_FIPS_2012_12) #checking on names
+glimpse(sba_merged_all) #also checking on names
+
+#changing names for target variable (zipcode)
+ZIP_COUNTY_FIPS_2012_12 <- ZIP_COUNTY_FIPS_2012_12 %>%
+  rename(zipcode = ZIP) %>%
+  select(zipcode, STCOUNTYFP)
+
+#merging on FIPS Codes:
+sba_merged_all <- sba_merged_all %>% 
+  left_join(ZIP_COUNTY_FIPS_2012_12, by = "zipcode")
+
+#Removing duplicates by singling out total verified loss - which seems to be the most unique (oringinal dataset had bbs = 16666, current dataset has obs = 13515)
+sba_merged_all <- sba_merged_all %>%
+  mutate(duplicate = duplicated(sba_merged_all$`Total Verified Loss`)) %>%
+  filter(duplicate == !(TRUE)) %>%
+  select(-duplicate)
+
+#now to separate out the state and county fips codes:
+sba_merged_all <- sba_merged_all %>%
+  mutate(stateFIPS = substr(STCOUNTYFP, 1, 2), 
+         countyFIPS = substr(STCOUNTYFP, 3, 5))
+
+#For reading in county level data I'll create a function that allows input of NAICS codes for: 23,31,32,33,42,44,45,53,54,56,62,72,81, which are the top 10 industries from PPP
+
+sba_census_2007 <- map_df(.x = NAICS2012,
+                          .f = sba_api_2007)
+#NO PAYQRT1 variable available:
+
+NAICS2012 <- c("23", "31-33", "42", "44-45", "53", "54", "56", "62", "72", "81")
+
+#run for each year and NAICS code and the merge into three dataframes:
+sba_census_2012 <- map_df(.x = NAICS2012,
+                          .f = sba_api_2012)
+
+NAICS2017 <- c("44-45", "53", "54", "56", "62", "72", "81")
+#CENSUS doesn't have Construction, Manufacturing, Whole sale retailers available.
+
+sba_census_2017 <- map_df(.x = NAICS2017,
+                          .f = sba_api_2017)
+
+sba_census_merged <- bind_rows(sba_census_2007, sba_census_2012, sba_census_2017)
+
+sba_census_merged <- sba_census_merged %>%
+  mutate(EMP = as.double(EMP),
+         ESTAB = as.double(EMP),
+         PAYANN = as.double(PAYANN),
+         RCPTOT = as.double(RCPTOT),
+         PAYQTR1 = as.double(PAYQTR1)) %>%
+  group_by(state, county, GEO_ID, NAICS2012) %>%
+  summarize(
+    emp = mean(EMP),
+    estab = mean(ESTAB),
+    payann = mean(PAYANN),
+    rcptot = mean(RCPTOT),
+    payqrt1 = mean(PAYQTR1))
+ 
+sba_census_merged <- sba_census_merged%>%
+  rename(countyFIPS = county,
+         stateFIPS = state)
+
+#merging county and disaster numbers:
+sba_merged_final <- sba_merged_all %>% 
+  left_join(sba_census_merged, by = c("countyFIPS" = "countyFIPS",
+                               "stateFIPS" = "stateFIPS"))
+
+#cleaning out the duplicates:
+sba_merged_final <- sba_merged_final %>%
+  mutate(duplicate = duplicated(sba_merged_final$`Total Verified Loss`)) %>%
+  filter(duplicate == !(TRUE)) %>%
+  select(-duplicate)
+
+glimpse(sba_merged_final)
+table(is.na(sba_merged_final$`Total Approved Loan Amount`))   
+table(is.na(sba_merged_final$`Approved Amount Content`))
+table(is.na(sba_merged_final$`Approved Amount EIDL`))
+table(is.na(sba_merged_final$emp))
+table(is.na(sba_merged_final$estab))
+table(is.na(sba_merged_final$payann))
+table(is.na(sba_merged_final$rcptot))
+table(sba_merged_final$rcptot == 0)
+table(is.na(sba_merged_final$payqrt1))
+table(is.na(sba_merged_final$GEO_ID))
+write.csv(sba_merged_final, "/Users/benjikaminari/Desktop/Georgetown_MPP/Introduction_to_Data_Science/final.project/sba_merged_final")
+
+```
+
+```{r checking out the data}
+ggplot(sba_merged_final, mapping = aes(x = rcptot, y = `Total Approved Loan Amount`)) +
+  geom_point() +
+  geom_smooth() 
+
+ggplot(sba_merged_final, mapping = aes(x = log(`Approved Amount Content`))) +
+  geom_histogram() 
+  scale_x_continuous(lim = c(0, 500000))
+  
+ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
+  geom_histogram() 
+  
+```
