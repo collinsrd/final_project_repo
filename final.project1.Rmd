@@ -226,6 +226,12 @@ ggplot(sba_merged_final, mapping = aes(x = log(`Approved Amount Content`))) +
   scale_x_continuous(lim = c(0, 500000))
   
 ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
-  geom_histogram() 
-  
+  geom_histogram()
+
+sba_corr <- sba_merged_final %>%
+  select(`Total Verified Loss`, `Verified Loss Real Estate`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Real Estate`, `Approved Amount Content`, `Approved Amount EIDL`, MBay_effect, emp, payann, rcptot, payqrt1)
+
+
+cor(na.omit(sba_corr))
 ```
+
