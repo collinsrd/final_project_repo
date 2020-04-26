@@ -28,9 +28,8 @@ source("R/sba_api_2007.R")
 ```
 
 Working on reading in the dataset and merging the datasets together.
-```{r reading in the data and merging, warning = F}
+```{r reading and merging SBA disaster loan data, warning = F}
 #first for the disaster loan-size:
-
 sba_sandy <- read_excel("data/SBA_Disaster_Loan_Data_Superstorm_Sandy_simple.xlsx", 
                         col_types = c("numeric", "numeric", "numeric",
                                       "text", "text", "numeric", "text", 
@@ -102,6 +101,7 @@ sba_2017 <- read_excel("data/SBA_Disaster_Loan_Data_FY17_simple.xlsx",
                                      "text", "numeric", "numeric", "numeric", 
                                      "numeric", "numeric", "numeric", 
                                      "numeric"))
+
 #adding column for major disaster variable:
 x = c("FL", "TX", "PR", "VI")
 sba_2017 <- sba_2017 %>%
@@ -152,20 +152,36 @@ sba_merged_all <- sba_merged_all %>%
   mutate(stateFIPS = substr(STCOUNTYFP, 1, 2), 
          countyFIPS = substr(STCOUNTYFP, 3, 5))
 
-#For reading in county level data I'll create a function that allows input of NAICS codes for: 23,31,32,33,42,44,45,53,54,56,62,72,81, which are the top 10 industries from PPP
+```
 
-sba_census_2007 <- map_df(.x = NAICS2012,
+For reading in county level data I'll create a function that allows input of NAICS codes for the top 10 industries provided PPP funding as of April 13th, 2020. (Although we can change this depending on the depth and detial of the industries we'd like to focus on. Currently we are looking at):
+
+- 23: Consturction 
+- 31-33: Manufacturing:
+- 42: Whole Sale
+- 44-45:Rtail Trade
+- 53: Real Estate Rental and Leasing
+- 54: Professional, Scientific and Technical Services
+- 56: Administrative and Support and Waste Management and Remediation Services
+- 62: Health Care and Social Assistance
+- 72: Accomodation and Food Services [WE MAY WANT TO CONSIDER MORE HERE]
+- 81: Other Services (expcept Public Administration)
+
+```{r merging in Economic Census data from Census API}
+
+#2012 and 2007 include all the relevent NAICS data so will use for both dataframes
+NAICS0712 <- c("23", "31-33", "42", "44-45", "53", "54", "56", "62", "72", "81")
+
+sba_census_2007 <- map_df(.x = NAICS0712,
                           .f = sba_api_2007)
-#NO PAYQRT1 variable available:
-
-NAICS2012 <- c("23", "31-33", "42", "44-45", "53", "54", "56", "62", "72", "81")
+#Noting there is NO PAYQRT1 variable available for 2007.
 
 #run for each year and NAICS code and the merge into three dataframes:
-sba_census_2012 <- map_df(.x = NAICS2012,
+sba_census_2012 <- map_df(.x = NAICS0712,
                           .f = sba_api_2012)
 
 NAICS2017 <- c("44-45", "53", "54", "56", "62", "72", "81")
-#CENSUS doesn't have Construction, Manufacturing, Whole sale retailers available.
+#CENSUS for 2017 doesn't have Construction, Manufacturing, Whole sale retailers available.
 
 sba_census_2017 <- map_df(.x = NAICS2017,
                           .f = sba_api_2017)
@@ -189,7 +205,9 @@ sba_census_merged <- sba_census_merged %>%
 sba_census_merged <- sba_census_merged%>%
   rename(countyFIPS = county,
          stateFIPS = state)
+```
 
+```{r merging census and SBA disaster data sets}
 #merging county and disaster numbers:
 sba_merged_final <- sba_merged_all %>% 
   left_join(sba_census_merged, by = c("countyFIPS" = "countyFIPS",
@@ -200,30 +218,27 @@ sba_merged_final <- sba_merged_final %>%
   mutate(duplicate = duplicated(sba_merged_final$`Total Verified Loss`)) %>%
   filter(duplicate == !(TRUE)) %>%
   select(-duplicate)
-
-glimpse(sba_merged_final)
-table(is.na(sba_merged_final$`Total Approved Loan Amount`))   
-table(is.na(sba_merged_final$`Approved Amount Content`))
-table(is.na(sba_merged_final$`Approved Amount EIDL`))
-table(is.na(sba_merged_final$emp))
-table(is.na(sba_merged_final$estab))
-table(is.na(sba_merged_final$payann))
-table(is.na(sba_merged_final$rcptot))
-table(sba_merged_final$rcptot == 0)
-table(is.na(sba_merged_final$payqrt1))
-table(is.na(sba_merged_final$GEO_ID))
-write.csv(sba_merged_final, "/Users/benjikaminari/Desktop/Georgetown_MPP/Introduction_to_Data_Science/final.project/sba_merged_final")
-
 ```
 
-```{r checking out the data}
+```{r quick check of the finalized dataset and variables}
+summary(sba_merged_final)
+```
+
+```{r checking out the data,  warning = F}
 ggplot(sba_merged_final, mapping = aes(x = rcptot, y = `Total Approved Loan Amount`)) +
+  geom_point() +
+  geom_smooth() 
+
+ggplot(sba_merged_final, mapping = aes(x = payann, y = `Approved Amount Content`)) +
+  geom_point() +
+  geom_smooth() 
+
+ggplot(sba_merged_final, mapping = aes(x = `Verified Loss Content`, y = `Approved Amount Content`)) +
   geom_point() +
   geom_smooth() 
 
 ggplot(sba_merged_final, mapping = aes(x = log(`Approved Amount Content`))) +
   geom_histogram() 
-  scale_x_continuous(lim = c(0, 500000))
   
 ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
   geom_histogram()
@@ -238,7 +253,6 @@ cor(na.omit(sba_corr))
 
 
 ```{r Creating MBay}
-
 #We can take or leave this, but thought it'd be interesting to have a formal way to classify the huge disasters
 
 agg_disasters <- sba_merged_final %>%
@@ -251,3 +265,55 @@ names(agg_disasters)[2] <- "Total_Loans"
 Baysian_Disasters <- agg_disasters %>%
   filter(Total_Loans > quantile(Total_Loans, 0.99))
 ```
+
+## Model specifications (DRAFT)
+
+**Variables under consideration**
+
+Dependent Variable:
+
+We have three potential variables for consideration: 
+
+- Total loan approved, 
+- Content loan approved 
+- EIDL approved amount.
+
+Our hunch is to lean towards the approved content loan as it would remove the real estate component from total loan amounts, since PPP loans are technically eligible for 250% of the last yeart of payroll. Moreover, while EIDL is a component of the SBA Paycheck protection program it's eligbility is more stringent which would mean that we could underestimate the prective amount.
+
+Independent Variables: 
+
+- The Micahel Bay factor:
+
+Because of high correlation with larger loan sizes and allows for us to engineer a scenario where all businesses are experiencing a major disaster.
+  
+- Business components:
+
+As it stands now, we have NAICS codes based upon the top 10 sectors receiving PPP as of a couple of weeks ago.Although this group can be expanded via the API in our code above request to go deeper and/or broader depending on if we want to highlight additional components. For example a recent Brookings[LINK] report break down industries into three different categories of risk, which could be an interesting additional indicator variable of at-risk industries that, like the Mbay factor, could give us some control about the size of relief.
+
+The other business component have been pulled from the Economic Census (as part of the U.S. Census), which is the official measure of the Nation’s businesses and economy. Conducted every five years, the survey serves as the statistical benchmark for current economic activity. The variables of interest include averages over 2007, 2012, and 2017 for:
+
+  - employee numnber, 
+  - number of establishments in the jurisdiction, 
+  - payroll,
+  - payroll of the first quarter,
+  - Sales and revenue value.
+
+Beyond these variables we are in further consideration on whether we want to specify size of the business by employee due to the eligibility requirements that no buisness over the size of 500 should be eligible. However, there are numerous reports indicating that firms with larger workforces have recieved loans. Therefore, it is important to note that for the purposes of this predictive model that we are [or are not] including businesses over 500 employees.
+
+Additionally, we are consdering the inculsion of further indicator variables to catagorize size of buisness for further identification of micro-businesses, which are more illiquid. It may be important to find a weighted variable to further capture the importance of business size. 
+
+We will also be including verified loss by the SBA during disaster analysis. There is a strong corelation between the approved amount and total verfied loss. We will need to explain why is considered in verified loss.
+Important to include because of correlation 
+
+Additional potential variables:
+- Geographic variable: Would it make sense to include a population density component for the data as well given that urban/rural distributions have an impact on buisness as well as potential virus impacts.
+
+- Time variable: Would we want to think through the ramifications on the size of loan if the crisis goes on longer than expected? If so, how do you think we could model this?
+
+**Algorithm Considerations: **
+
+We think it would be good to have a couple options to help see which might help the model fit better. Specifically:
+
+- Random Forests
+- Classic CART option
+- Linear Regression 
