@@ -129,9 +129,6 @@ sba_merged_all <- sba_merged_all %>%
 #Now will wan to read in data for fips codes:
 ZIP_COUNTY_FIPS_2012_12 <- read_csv("data/ZIP-COUNTY-FIPS_2012-12.csv")
 
-glimpse(ZIP_COUNTY_FIPS_2012_12) #checking on names
-glimpse(sba_merged_all) #also checking on names
-
 #changing names for target variable (zipcode)
 ZIP_COUNTY_FIPS_2012_12 <- ZIP_COUNTY_FIPS_2012_12 %>%
   rename(zipcode = ZIP) %>%
@@ -167,8 +164,7 @@ For reading in county level data I'll create a function that allows input of NAI
 - 72: Accomodation and Food Services [WE MAY WANT TO CONSIDER MORE HERE]
 - 81: Other Services (expcept Public Administration)
 
-```{r merging in Economic Census data from Census API}
-
+```{r merging in Economic Census data from Census API, waring = F}
 #2012 and 2007 include all the relevent NAICS data so will use for both dataframes
 NAICS0712 <- c("23", "31-33", "42", "44-45", "53", "54", "56", "62", "72", "81")
 
@@ -306,6 +302,7 @@ We will also be including verified loss by the SBA during disaster analysis. The
 Important to include because of correlation 
 
 Additional potential variables:
+
 - Geographic variable: Would it make sense to include a population density component for the data as well given that urban/rural distributions have an impact on buisness as well as potential virus impacts.
 
 - Time variable: Would we want to think through the ramifications on the size of loan if the crisis goes on longer than expected? If so, how do you think we could model this?

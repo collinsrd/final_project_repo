@@ -481,34 +481,7 @@ sba_merged_all &lt;- sba_merged_all %&gt;%
 #Now will wan to read in data for fips codes:
 ZIP_COUNTY_FIPS_2012_12 &lt;- read_csv(&quot;data/ZIP-COUNTY-FIPS_2012-12.csv&quot;)
 
-glimpse(ZIP_COUNTY_FIPS_2012_12) #checking on names</code></pre>
-<pre><code>## Observations: 50,008
-## Variables: 5
-## $ ZIP        &lt;dbl&gt; 36003, 36006, 36008, 36022, 36051, 36066, 36067, 36068, 36…
-## $ COUNTYNAME &lt;chr&gt; &quot;Autauga County&quot;, &quot;Autauga County&quot;, &quot;Autauga County&quot;, &quot;Aut…
-## $ STATE      &lt;chr&gt; &quot;AL&quot;, &quot;AL&quot;, &quot;AL&quot;, &quot;AL&quot;, &quot;AL&quot;, &quot;AL&quot;, &quot;AL&quot;, &quot;AL&quot;, &quot;AL&quot;, &quot;AL&quot;…
-## $ STCOUNTYFP &lt;chr&gt; &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;, &quot;010…
-## $ CLASSFP    &lt;chr&gt; &quot;H1&quot;, &quot;H1&quot;, &quot;H1&quot;, &quot;H1&quot;, &quot;H1&quot;, &quot;H1&quot;, &quot;H1&quot;, &quot;H1&quot;, &quot;H1&quot;, &quot;H1&quot;…</code></pre>
-<pre class="r"><code>glimpse(sba_merged_all) #also checking on names</code></pre>
-<pre><code>## Observations: 16,666
-## Variables: 16
-## $ `SBA Physical Declaration Number`     &lt;dbl&gt; 13365, 13365, 13365, 13365, 133…
-## $ `SBA EIDL Declaration Number`         &lt;dbl&gt; 13366, 13366, 13366, 13366, 133…
-## $ `FEMA Disaster Number`                &lt;dbl&gt; 4085, 4085, 4085, 4085, 4085, 4…
-## $ `SBA Disaster Number`                 &lt;chr&gt; &quot;NY-00130&quot;, &quot;NY-00130&quot;, &quot;NY-001…
-## $ `Damaged Property City Name`          &lt;chr&gt; &quot;ALBERTSON&quot;, &quot;AMITY HARBOR&quot;, &quot;A…
-## $ zipcode                               &lt;dbl&gt; 11507, 11701, 11701, 11701, 117…
-## $ `Damaged Property County/Parish Name` &lt;chr&gt; &quot;NASSAU&quot;, &quot;SUFFOLK&quot;, &quot;SUFFOLK&quot;,…
-## $ `Damaged Property State Code`         &lt;chr&gt; &quot;NY&quot;, &quot;NY&quot;, &quot;NY&quot;, &quot;NY&quot;, &quot;NY&quot;, &quot;…
-## $ `Total Verified Loss`                 &lt;dbl&gt; 51955, 471587, 0, 27812, 420524…
-## $ `Verified Loss Real Estate`           &lt;dbl&gt; 42355, 407182, 0, 16712, 330085…
-## $ `Verified Loss Content`               &lt;dbl&gt; 9600, 64405, 0, 11100, 904385, …
-## $ `Total Approved Loan Amount`          &lt;dbl&gt; 50400, 175300, 18500, 0, 155260…
-## $ `Approved Amount Real Estate`         &lt;dbl&gt; 0, 105400, 0, 0, 899400, 66200,…
-## $ `Approved Amount Content`             &lt;dbl&gt; 0, 55700, 0, 0, 279900, 0, 0, 0…
-## $ `Approved Amount EIDL`                &lt;dbl&gt; 50400, 14200, 18500, 0, 373300,…
-## $ MBay_effect                           &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1…</code></pre>
-<pre class="r"><code>#changing names for target variable (zipcode)
+#changing names for target variable (zipcode)
 ZIP_COUNTY_FIPS_2012_12 &lt;- ZIP_COUNTY_FIPS_2012_12 %&gt;%
   rename(zipcode = ZIP) %&gt;%
   select(zipcode, STCOUNTYFP)
@@ -588,79 +561,79 @@ sba_merged_final &lt;- sba_merged_final %&gt;%
   mutate(duplicate = duplicated(sba_merged_final$`Total Verified Loss`)) %&gt;%
   filter(duplicate == !(TRUE)) %&gt;%
   select(-duplicate)</code></pre>
-<pre class="r"><code>glimpse(sba_merged_final)</code></pre>
-<pre><code>## Observations: 13,515
-## Variables: 26
-## $ `SBA Physical Declaration Number`     &lt;dbl&gt; 13365, 13365, 13365, 13365, 133…
-## $ `SBA EIDL Declaration Number`         &lt;dbl&gt; 13366, 13366, 13366, 13366, 133…
-## $ `FEMA Disaster Number`                &lt;dbl&gt; 4085, 4085, 4085, 4085, 4085, 4…
-## $ `SBA Disaster Number`                 &lt;chr&gt; &quot;NY-00130&quot;, &quot;NY-00130&quot;, &quot;NY-001…
-## $ `Damaged Property City Name`          &lt;chr&gt; &quot;ALBERTSON&quot;, &quot;AMITY HARBOR&quot;, &quot;A…
-## $ zipcode                               &lt;dbl&gt; 11507, 11701, 11701, 11701, 117…
-## $ `Damaged Property County/Parish Name` &lt;chr&gt; &quot;NASSAU&quot;, &quot;SUFFOLK&quot;, &quot;SUFFOLK&quot;,…
-## $ `Damaged Property State Code`         &lt;chr&gt; &quot;NY&quot;, &quot;NY&quot;, &quot;NY&quot;, &quot;NY&quot;, &quot;NY&quot;, &quot;…
-## $ `Total Verified Loss`                 &lt;dbl&gt; 51955, 471587, 0, 27812, 420524…
-## $ `Verified Loss Real Estate`           &lt;dbl&gt; 42355, 407182, 0, 16712, 330085…
-## $ `Verified Loss Content`               &lt;dbl&gt; 9600, 64405, 0, 11100, 904385, …
-## $ `Total Approved Loan Amount`          &lt;dbl&gt; 50400, 175300, 18500, 0, 155260…
-## $ `Approved Amount Real Estate`         &lt;dbl&gt; 0, 105400, 0, 0, 899400, 66200,…
-## $ `Approved Amount Content`             &lt;dbl&gt; 0, 55700, 0, 0, 279900, 0, 0, 0…
-## $ `Approved Amount EIDL`                &lt;dbl&gt; 50400, 14200, 18500, 0, 373300,…
-## $ MBay_effect                           &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1…
-## $ STCOUNTYFP                            &lt;chr&gt; &quot;36059&quot;, &quot;36059&quot;, &quot;36059&quot;, &quot;360…
-## $ stateFIPS                             &lt;chr&gt; &quot;36&quot;, &quot;36&quot;, &quot;36&quot;, &quot;36&quot;, &quot;36&quot;, &quot;…
-## $ countyFIPS                            &lt;chr&gt; &quot;059&quot;, &quot;059&quot;, &quot;059&quot;, &quot;059&quot;, &quot;05…
-## $ GEO_ID                                &lt;chr&gt; &quot;0500000US36059&quot;, &quot;0500000US360…
-## $ NAICS2012                             &lt;chr&gt; &quot;31-33&quot;, &quot;31-33&quot;, &quot;31-33&quot;, &quot;31-…
-## $ emp                                   &lt;dbl&gt; 16580, 16580, 16580, 16580, 165…
-## $ estab                                 &lt;dbl&gt; 16580, 16580, 16580, 16580, 165…
-## $ payann                                &lt;dbl&gt; 893692, 893692, 893692, 893692,…
-## $ rcptot                                &lt;dbl&gt; 5196698, 5196698, 5196698, 5196…
-## $ payqrt1                               &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0…</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$`Total Approved Loan Amount`))   </code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13514     1</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$`Approved Amount Content`))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13513     2</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$`Approved Amount EIDL`))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13494    21</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$`Verified Loss Content`))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13514     1</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$emp))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13196   319</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$estab))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13196   319</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$payann))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13196   319</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$rcptot))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13196   319</code></pre>
-<pre class="r"><code>table(sba_merged_final$rcptot == 0)</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 11090  2106</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$payqrt1))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13196   319</code></pre>
-<pre class="r"><code>table(is.na(sba_merged_final$GEO_ID))</code></pre>
-<pre><code>## 
-## FALSE  TRUE 
-## 13196   319</code></pre>
+<pre class="r"><code>summary(sba_merged_final)</code></pre>
+<pre><code>##  SBA Physical Declaration Number SBA EIDL Declaration Number
+##  Min.   :11055                   Min.   :11056              
+##  1st Qu.:12290                   1st Qu.:12291              
+##  Median :13367                   Median :13368              
+##  Mean   :13560                   Mean   :13561              
+##  3rd Qu.:15175                   3rd Qu.:15176              
+##  Max.   :15707                   Max.   :15708              
+##  NA's   :2                       NA's   :1                  
+##  FEMA Disaster Number SBA Disaster Number Damaged Property City Name
+##  Min.   : 1730        Length:13515        Length:13515              
+##  1st Qu.: 1931        Class :character    Class :character          
+##  Median : 4086        Mode  :character    Mode  :character          
+##  Mean   : 3506                                                      
+##  3rd Qu.: 4332                                                      
+##  Max.   :99999                                                      
+##  NA's   :1400                                                       
+##     zipcode      Damaged Property County/Parish Name
+##  Min.   :    0   Length:13515                       
+##  1st Qu.:19047   Class :character                   
+##  Median :34212   Mode  :character                   
+##  Mean   :42289                                      
+##  3rd Qu.:70512                                      
+##  Max.   :99780                                      
+##  NA's   :18                                         
+##  Damaged Property State Code Total Verified Loss Verified Loss Real Estate
+##  Length:13515                Min.   :        0   Min.   :        0        
+##  Class :character            1st Qu.:    32742   1st Qu.:    22314        
+##  Mode  :character            Median :   116826   Median :    86750        
+##                              Mean   :  1654561   Mean   :  1424518        
+##                              3rd Qu.:   478361   3rd Qu.:   378658        
+##                              Max.   :531025562   Max.   :519270411        
+##                              NA's   :1           NA's   :1                
+##  Verified Loss Content Total Approved Loan Amount Approved Amount Real Estate
+##  Min.   :       0      Min.   :        0          Min.   :        0          
+##  1st Qu.:     600      1st Qu.:        0          1st Qu.:        0          
+##  Median :   11760      Median :    22600          Median :     7400          
+##  Mean   :  228875      Mean   :   393723          Mean   :   269880          
+##  3rd Qu.:   69710      3rd Qu.:   168075          3rd Qu.:    89400          
+##  Max.   :41445378      Max.   :105347000          Max.   :105347000          
+##  NA's   :1             NA's   :1                  NA's   :2                  
+##  Approved Amount Content Approved Amount EIDL  MBay_effect    
+##  Min.   :       0        Min.   :       0     Min.   :0.0000  
+##  1st Qu.:       0        1st Qu.:       0     1st Qu.:0.0000  
+##  Median :       0        Median :       0     Median :0.0000  
+##  Mean   :   60046        Mean   :   62169     Mean   :0.3066  
+##  3rd Qu.:   12600        3rd Qu.:   17000     3rd Qu.:1.0000  
+##  Max.   :11351900        Max.   :13971500     Max.   :1.0000  
+##  NA's   :2               NA's   :21                           
+##   STCOUNTYFP         stateFIPS          countyFIPS           GEO_ID         
+##  Length:13515       Length:13515       Length:13515       Length:13515      
+##  Class :character   Class :character   Class :character   Class :character  
+##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
+##                                                                             
+##                                                                             
+##                                                                             
+##                                                                             
+##   NAICS2012              emp             estab            payann        
+##  Length:13515       Min.   :     0   Min.   :     0   Min.   :       0  
+##  Class :character   1st Qu.:  1566   1st Qu.:  1566   1st Qu.:   66876  
+##  Mode  :character   Median :  6049   Median :  6049   Median :  312804  
+##                     Mean   : 21632   Mean   : 21632   Mean   : 1246149  
+##                     3rd Qu.: 19144   3rd Qu.: 19144   3rd Qu.: 1016781  
+##                     Max.   :359532   Max.   :359532   Max.   :19852765  
+##                     NA's   :319      NA's   :319      NA's   :319       
+##      rcptot             payqrt1       
+##  Min.   :        0   Min.   :    0.0  
+##  1st Qu.:   270979   1st Qu.:    0.0  
+##  Median :  2056739   Median :    0.0  
+##  Mean   : 15925197   Mean   :  591.8  
+##  3rd Qu.:  8280907   3rd Qu.:    0.0  
+##  Max.   :200035355   Max.   :61168.0  
+##  NA's   :319         NA's   :319</code></pre>
 <pre class="r"><code>ggplot(sba_merged_final, mapping = aes(x = rcptot, y = `Total Approved Loan Amount`)) +
   geom_point() +
   geom_smooth() </code></pre>
@@ -792,9 +765,10 @@ Baysian_Disasters &lt;- agg_disasters %&gt;%
 <p>Beyond these variables we are in further consideration on whether we want to specify size of the business by employee due to the eligibility requirements that no buisness over the size of 500 should be eligible. However, there are numerous reports indicating that firms with larger workforces have recieved loans. Therefore, it is important to note that for the purposes of this predictive model that we are [or are not] including businesses over 500 employees.</p>
 <p>Additionally, we are consdering the inculsion of further indicator variables to catagorize size of buisness for further identification of micro-businesses, which are more illiquid. It may be important to find a weighted variable to further capture the importance of business size.</p>
 <p>We will also be including verified loss by the SBA during disaster analysis. There is a strong corelation between the approved amount and total verfied loss. We will need to explain why is considered in verified loss. Important to include because of correlation</p>
-<p>Additional potential variables: - Geographic variable: Would it make sense to include a population density component for the data as well given that urban/rural distributions have an impact on buisness as well as potential virus impacts.</p>
+<p>Additional potential variables:</p>
 <ul>
-<li>Time variable: Would we want to think through the ramifications on the size of loan if the crisis goes on longer than expected? If so, how do you think we could model this?</li>
+<li><p>Geographic variable: Would it make sense to include a population density component for the data as well given that urban/rural distributions have an impact on buisness as well as potential virus impacts.</p></li>
+<li><p>Time variable: Would we want to think through the ramifications on the size of loan if the crisis goes on longer than expected? If so, how do you think we could model this?</p></li>
 </ul>
 <p><strong>Algorithm Considerations: </strong></p>
 <p>We think it would be good to have a couple options to help see which might help the model fit better. Specifically:</p>
