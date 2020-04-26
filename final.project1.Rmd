@@ -228,10 +228,26 @@ ggplot(sba_merged_final, mapping = aes(x = log(`Approved Amount Content`))) +
 ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
   geom_histogram()
 
+#Finding correlation
+
 sba_corr <- sba_merged_final %>%
   select(`Total Verified Loss`, `Verified Loss Real Estate`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Real Estate`, `Approved Amount Content`, `Approved Amount EIDL`, MBay_effect, emp, payann, rcptot, payqrt1)
-
 
 cor(na.omit(sba_corr))
 ```
 
+
+```{r Creating MBay}
+
+#We can take or leave this, but thought it'd be interesting to have a formal way to classify the huge disasters
+
+agg_disasters <- sba_merged_final %>%
+  group_by(`SBA Disaster Number`) %>%
+  summarise(sum(`Total Approved Loan Amount`)) %>%
+  drop_na()
+
+names(agg_disasters)[2] <- "Total_Loans"
+
+Baysian_Disasters <- agg_disasters %>%
+  filter(Total_Loans > quantile(Total_Loans, 0.99))
+```
