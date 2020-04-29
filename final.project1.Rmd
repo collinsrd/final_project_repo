@@ -21,6 +21,7 @@ library(tidyverse)
 library(tidymodels)
 library(httr)
 library(jsonlite)
+library(randomForest)
 source("R/header.true.R")
 source("R/sba_api_2012.R")
 source("R/sba_api_2017.R")
@@ -316,37 +317,103 @@ We think it would be good to have a couple options to help see which might help 
 - Linear Regression 
 
 
-``` {r Cart}
+``` {r 3 Methods}
 
 set.seed(seed = 20200428)
 split <- initial_split(XXX, prop = 0.80)
 SBA_train <- training(split)
 SBA_test <- testing(split)
+SBA_resamples <- vfold_cv(data = SBA_train,
+                          v = 10)
+
+#unsure what the code for random forests would be
+
+SBA_RF <- function(split, formula,...) {
+  recipe <- 
+    recipe(formula, data = analysis(split)) %>%
+    log vars %>%
+    prep()
+  analysis_data <- analysis(split) %>%
+    bake(object = recipe, new_data = .)
+  model <- linear_reg() %>%
+    set_engine(???) %>%
+    fit(formula, data = analysis_data)
+  assessment_data <- assessment(split) %>%
+    bake(object = recipe, new_data = .)
+  rmse <- bind_cols(
+    assessment_data,
+    predict(model, assessment_data)
+  ) %>%
+    rmse(truth = XXX, estimate = .pred) %>%
+    pull(.estimate)
+  
+  return(rmse)
+}
+
+SBA_CART <- function(split, formula,...) {
+  recipe <- 
+    recipe(formula, data = analysis(split)) %>%
+    log vars %>%
+    prep()
+  analysis_data <- analysis(split) %>%
+    bake(object = recipe, new_data = .)
+  model <- decision_tree(mode = "regression") %>%
+    set_engine("rpart") %>%
+    fit(formula, data = analysis_data)
+  assessment_data <- assessment(split) %>%
+    bake(object = recipe, new_data = .)
+  rmse <- bind_cols(
+    assessment_data,
+    predict(model, assessment_data)
+  ) %>%
+    rmse(truth = XXX, estimate = .pred) %>%
+    pull(.estimate)
+  
+  return(rmse)
+}
+
+SBA_linear <- function(split, formula,...) {
+  recipe <- 
+    recipe(formula, data = analysis(split)) %>%
+    log vars %>%
+    prep()
+  analysis_data <- analysis(split) %>%
+    bake(object = recipe, new_data = .)
+  model <- linear_reg() %>%
+    set_engine("lm") %>%
+    fit(formula, data = analysis_data)
+  assessment_data <- assessment(split) %>%
+    bake(object = recipe, new_data = .)
+  rmse <- bind_cols(
+    assessment_data,
+    predict(model, assessment_data)
+  ) %>%
+    rmse(truth = XXX, estimate = .pred) %>%
+    pull(.estimate)
+  
+  return(rmse)
+}
 
 
-model_DT <-
-  decision_tree(mode = "classification") %>%
-  set_engine(engine = "rpart") %>%
-  fit(formula =  XXXX~ .,
-      data = SBA_train)
-
-prediction_DT <- bind_cols(
-  SBA_test,
-  decision_tree = predict(model_DT, SBA_test)
-)
-
-prediction_DT %>%
-  conf_mat(truth = XXX,
-           estimate = .pred_class)
 
 ```
 
-``` {r Random Forest}
-
-```
+``` {r Choose Model}
 
 
-```{r Linear}
+SBA_resamples <-
+  mutate(
+    rmse1 = map_dbl(splits,
+                    ~SBA_CART(split = .x,
+                              formula = ??????)),
+    rmse2 = map_dbl(splits,
+                    ~SBA_RF(split = .x,
+                              formula = ??????)),
+    rmse3 = map_dbl(splits,
+                    ~SBA_linear(split = .x,
+                              formula = ??????)),
+                    ))
+  )
 
 
 ```
