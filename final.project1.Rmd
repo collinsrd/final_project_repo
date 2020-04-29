@@ -314,3 +314,40 @@ We think it would be good to have a couple options to help see which might help 
 - Random Forests
 - Classic CART option
 - Linear Regression 
+
+
+``` {r Cart}
+
+set.seed(seed = 20200428)
+split <- initial_split(XXX, prop = 0.80)
+SBA_train <- training(split)
+SBA_test <- testing(split)
+
+
+model_DT <-
+  decision_tree(mode = "classification") %>%
+  set_engine(engine = "rpart") %>%
+  fit(formula =  XXXX~ .,
+      data = SBA_train)
+
+prediction_DT <- bind_cols(
+  SBA_test,
+  decision_tree = predict(model_DT, SBA_test)
+)
+
+prediction_DT %>%
+  conf_mat(truth = XXX,
+           estimate = .pred_class)
+
+```
+
+``` {r Random Forest}
+
+```
+
+
+```{r Linear}
+
+
+```
+
