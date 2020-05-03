@@ -15,5 +15,6 @@ useful for policy makers as they estimate total cost of programs such as PPP, wh
 days, have had significantly more demand than thought.
 
 ## Pages
+* [Halfway Check-In](https://afclegg.github.io/final_project_repo/final.project)
 
 
