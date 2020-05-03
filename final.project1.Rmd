@@ -26,6 +26,7 @@ source("R/header.true.R")
 source("R/sba_api_2012.R")
 source("R/sba_api_2017.R")
 source("R/sba_api_2007.R")
+source("R/add_year.R")
 ```
 
 Working on reading in the dataset and merging the datasets together.
@@ -127,6 +128,23 @@ sba_2018 <- read_excel("data/SBA_Disaster_Loan_Data_FY18_simple.xlsx",
                                      "numeric", "numeric", "numeric", 
                                      "numeric"))
 
+#adding year variable:
+years <- c(2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018)
+
+sba_2008 <- add_year(sba_2008, 1)
+sba_2009 <- add_year(sba_2009, 2)
+sba_2010 <- add_year(sba_2010, 3)
+sba_2011 <- add_year(sba_2011, 4)
+sba_2012 <- add_year(sba_2012, 5)
+sba_sandy <- add_year(sba_sandy, 5)
+sba_2013 <- add_year(sba_2013, 6)
+sba_2014 <- add_year(sba_2014, 7)
+sba_2015 <- add_year(sba_2015, 8)
+sba_2016 <- add_year(sba_2016, 9)
+sba_2017 <- add_year(sba_2017, 10)
+sba_2018 <- add_year(sba_2018, 11)
+
+
 #binding columns:
 sba_merged_all<- bind_rows(sba_sandy, sba_2008, sba_2009, sba_2010, sba_2011, sba_2012, sba_2013,
                            sba_2014, sba_2015, sba_2016, sba_2017, sba_2018)
@@ -150,17 +168,40 @@ ZIP_COUNTY_FIPS_2012_12 <- ZIP_COUNTY_FIPS_2012_12 %>%
 sba_merged_all <- sba_merged_all %>% 
   left_join(ZIP_COUNTY_FIPS_2012_12, by = "zipcode")
 
-#Removing duplicates by singling out total verified loss - which seems to be the most unique (oringinal dataset had bbs = 16666, current dataset has obs = 13515)
-sba_merged_all <- sba_merged_all %>%
-  mutate(duplicate = duplicated(sba_merged_all$`Total Verified Loss`)) %>%
-  filter(duplicate == !(TRUE)) %>%
-  select(-duplicate)
-
 #now to separate out the state and county fips codes:
 sba_merged_all <- sba_merged_all %>%
   mutate(stateFIPS = substr(STCOUNTYFP, 1, 2), 
          countyFIPS = substr(STCOUNTYFP, 3, 5))
 
+#creating weight for countys with multiple zipcodes:
+sba_agg <- sba_merged_all %>% 
+  group_by(zipcode, year) %>%
+  summarise(n = n())
+
+sba_merged_all <- left_join(sba_merged_all, 
+                             sba_agg,
+                             by = c("zipcode", "year"))
+
+sba_merged_all <- sba_merged_all %>%
+  mutate(weighted_content_loan = `Approved Amount Content`/n,
+         weighted_loss_content = `Verified Loss Content`/n) 
+
+sba_weighted <- sba_merged_all %>%
+  group_by(countyFIPS, stateFIPS, year) %>%
+  summarize(
+    total_county_approved_content_loan = sum(weighted_content_loan),
+    total_county_verified_content_loan = sum(weighted_loss_content),
+    avg_county_approved_content_loan = weighted.mean(weighted_content_loan, weight = 1/n),
+    avg_county_verified_content_loan = weighted.mean(weighted_loss_content, weight = 1/n),
+  )
+
+#now merging them all onto sba_merged 
+sba_merged_all <- left_join(sba_merged_all, 
+                             sba_weighted,
+                             by = c("countyFIPS", "stateFIPS", "year")) 
+
+sba_merged_all <- sba_merged_all%>%
+  select(year, zipcode, countyFIPS, stateFIPS, `Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, MBay_effect, `SBA Disaster Number`)
 ```
 
 For reading in county level data I'll create a function that allows input of NAICS codes for the top 10 industries provided PPP funding as of April 13th, 2020. (Although we can change this depending on the depth and detial of the industries we'd like to focus on. Currently we are looking at):
@@ -213,19 +254,38 @@ sba_census_merged <- sba_census_merged %>%
 sba_census_merged <- sba_census_merged%>%
   rename(countyFIPS = county,
          stateFIPS = state)
+
+#Adding in COVID cases/deaths 5.3.20:
+covid <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
+covid <- covid %>%
+  mutate(stateFIPS = substr(fips, 1, 2), 
+         countyFIPS = substr(fips, 3, 5))
+
+covid <- covid %>%
+  group_by(stateFIPS, countyFIPS) %>%
+  summarise(covid_deaths = sum(deaths),
+            covid_cases = sum(cases))
+
+#merging onto sba_census data:
+predictors <- sba_census_merged %>%
+  left_join(covid, by = c("stateFIPS", "countyFIPS"))
+
 ```
 
 ```{r merging census and SBA disaster data sets}
 #merging county and disaster numbers:
 sba_merged_final <- sba_merged_all %>% 
-  left_join(sba_census_merged, by = c("countyFIPS" = "countyFIPS",
+  left_join(predictors, by = c("countyFIPS" = "countyFIPS",
                                "stateFIPS" = "stateFIPS"))
 
+#NOT SURE IF WE NEED TO DO THIS.
 #cleaning out the duplicates:
-sba_merged_final <- sba_merged_final %>%
-  mutate(duplicate = duplicated(sba_merged_final$`Total Verified Loss`)) %>%
-  filter(duplicate == !(TRUE)) %>%
-  select(-duplicate)
+  
+#sba_merged_final <- sba_merged_final %>%
+#  mutate(duplicate = duplicated(sba_merged_final$`Total Verified Loss`)) %>%
+#  filter(duplicate == !(TRUE)) %>%
+#  select(-duplicate)
 ```
 
 ```{r quick check of the finalized dataset and variables}
@@ -254,7 +314,7 @@ ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
 #Finding correlation
 
 sba_corr <- sba_merged_final %>%
-  select(`Total Verified Loss`, `Verified Loss Real Estate`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Real Estate`, `Approved Amount Content`, `Approved Amount EIDL`, MBay_effect, emp, payann, rcptot, payqrt1)
+  select(`Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, covid_cases, covid_deaths, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, MBay_effect, emp, payann, rcptot, payqrt1)
 
 cor(na.omit(sba_corr))
 ```
@@ -315,7 +375,6 @@ We think it would be good to have a couple options to help see which might help 
 
 
 ``` {r 3 Methods}
-
 set.seed(seed = 20200428)
 split <- initial_split(sba_merged_final, prop = 0.80)
 SBA_train <- training(split)
@@ -380,7 +439,6 @@ SBA_linear <- function(split, formula,...) {
 ```
 
 ``` {r Choose Model}
-
 
 SBA_resamples <-
   mutate(
