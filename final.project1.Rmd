@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(message = FALSE)
 ```
 
-Here are the packages that will be needed for this assignment:
+Here are the packages that will be needed for the project:
 
 ```{r packages}
 library(readr)
@@ -29,8 +29,23 @@ source("R/sba_api_2007.R")
 source("R/add_year.R")
 ```
 
-Working on reading in the dataset and merging the datasets together.
-```{r reading and merging SBA disaster loan data, warning = F}
+##Project Overview:
+
+With the coronavirus pandemic having upended life as we know it, many government from around the world have instituted massive lockdowns on economic activity to slow the spread of the virus and protect vulnerable segments of the populaiton. Unfortunately, these measures also carry a significant economic costs. In the United States alone, they have resulting in #TKTKT jobs losses, a full scale retreat from consumption and put many industries and businesses in serious threat of bankrupcy and insolvency. As a result, the federal government through several rounds of legislative action have tried to stem the economic losses through several programs. One - the Paycheck Protection Program (PPP) - administered by the Small Business Administration (SBA) was intented to provide businesses under 500 employees the wherewithal to withstand the immediate economic downturn with minimual loss. The original funding stipulated was $250 billion dollars.
+
+Within the first two weeks of the program demand was overwhelming. So much so, that funding for businesses through the program ran out within a matter of weeks and forced congress to authorize an additional $310 billion dollars for the program. While the program has had challenges with scaling, acces and eligiblity it has been somewhat of a success in providing businesses with a lifeline during this downturn. Moreover, as an intended policy, the program was designed to only provide funding to small buisnesses who retained the same level of payroll - stipulating that at minimum, 75% of funds must be used to provide payroll relief and to retain employees. As such, one primary goal was to keep people employed throughout the downturn such that when government-sanctioned lockdowns lifted, those workers would be able to return to a secure job instead of find themselves in line for additional unemployment benefitis. Whether or not this will be the result, it is likely too early to tell. 
+
+There is one thing for certain - that the program experienced massive demand - such that funds were overwhelmed and institutions were forced to serve those who came first. This has led to the unnecessary prioritization of certain businesses over others when the object of the policy was to make this a guarentee for any business that might need it as a means to retain the same level of employment as they held prior to the pandemnic. Which raises the question - why didn't congress allocate what is likely a quarter of what is needed? 
+
+While the COVID-19 pandemic is a classic black swan event in relation to other historic disaster events, SBA and federal agencies could perhaps have been better prepared to predict the specific demand needed for the program. It is the goal of this project to predict what was the average loan amount for the Paycheck Protection Program based upon previous disaster loan approvals. While this is not an apples to apples comparison, the hope is that we find a generally useful guide for loan pracitioners and understand just how much of an outlier this crisis has and continues to be.
+
+## Data for consideration:
+
+### Dependent Variable:
+
+The data we will be using for this project come from multiple sources but our primary interest is in the historical SBA disaster loan data available from SBA, which cataloges the specific loss and approved loan amounts to areas impacted by natural disasters between the years of 2008 and 2018. All relevant data can be found and downloaded [here](https://www.sba.gov/about-sba/sba-performance/open-government/digital-sba/open-data/open-data-sources). 
+
+```{r reading in SBA disaster data, echo = F}
 #first for the disaster loan-size:
 sba_sandy <- read_excel("data/SBA_Disaster_Loan_Data_Superstorm_Sandy_simple.xlsx", 
                         col_types = c("numeric", "numeric", "numeric",
@@ -38,11 +53,6 @@ sba_sandy <- read_excel("data/SBA_Disaster_Loan_Data_Superstorm_Sandy_simple.xls
                                       "text", "numeric", "numeric", "numeric", 
                                       "numeric", "numeric", "numeric", 
                                       "numeric"))
-
-#adding column for major disaster variable
-sba_sandy <- sba_sandy %>%
-  mutate(MBay_effect = 1)
-
 sba_2008 <- read_excel("data/SBA_Disaster_Loan_Data_FY08_simple.xlsx", 
                         col_types = c("numeric", "numeric", "numeric",
                                       "text", "text", "numeric", "text", 
@@ -103,6 +113,33 @@ sba_2017 <- read_excel("data/SBA_Disaster_Loan_Data_FY17_simple.xlsx",
                                      "text", "numeric", "numeric", "numeric", 
                                      "numeric", "numeric", "numeric", 
                                      "numeric"))
+sba_2018 <- read_excel("data/SBA_Disaster_Loan_Data_FY18_simple.xlsx",
+                       col_types = c("numeric", "numeric", "numeric", 
+                                     "text", "text", "numeric", "text", 
+                                     "text", "numeric", "numeric", "numeric", 
+                                     "numeric", "numeric", "numeric", 
+                                     "numeric"))
+
+```
+
+For our dependent variable, we are looking at the specific "Approved Content Loan Amount," available within the SBA data. SBA disaster dataset includes several data sources of which approved content, we believe, to be the most comparable. Specifically, the data include verified losse and approved amounts. The losses and amounts are separated into "total", "real estate", and "content." We believe that content amount and content loss are important variables because the account for the total loss/approved amount related to the non-physical property related damages including inventory, equipment and other goods/services related loss.  
+
+which the specific amount approved by SBA for the content a business lost in the disaster. We believe this is a useful proxy for PPP loan amounts provided they are only eligble to be used for payroll and some fixed costs. We are also looking at the SBA's Economic Injury Disaster Loan amounts as they are more comparable to the current circunstances businesses are facing with COVID.
+
+**Michael Bay Effect**
+
+We are also adding in an additional indicator variable to demarcate unusually significant natural disasters - all of which are major hurricanes. We've specified the value one for damange caused by Hurricane Sandy (2012), Hurricane Maria (2017), and Hurricane Harvey (2017) - all of which cause unusally high amounts of damange. All other disasters will recieve a value equal to zero. It is our hope that during the model training process we may be able to amplify the impact of a disaster, such that we can show what the cost might be were a major disaster such as Sandy, Maria, or Harvey to hit the entire country like the COVID virus has.
+
+```{r adding MBay_effect variable = 1}
+#adding column for major disaster variable from sandy
+sba_sandy <- sba_sandy %>%
+  mutate(MBay_effect = 1)
+
+#adding column for major disaster variable from 2017 hurricanes:
+x = c("FL", "TX", "PR", "VI")
+sba_2017 <- sba_2017 %>%
+  mutate(
+MBay_effect = ifelse(sba_2017$`Damaged Property State Code`%in% x, 1 ,0))
 
 #adding column for major disaster variable:
 agg_disasters <- sba_merged_final %>%
@@ -120,14 +157,9 @@ x = c("TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033")
 sba_2017 <- sba_2017 %>%
   mutate(
 MBay_effect = ifelse(sba_2017$`SBA Disaster Number`%in% x, 1 ,0))
+```
 
-sba_2018 <- read_excel("data/SBA_Disaster_Loan_Data_FY18_simple.xlsx",
-                       col_types = c("numeric", "numeric", "numeric", 
-                                     "text", "text", "numeric", "text", 
-                                     "text", "numeric", "numeric", "numeric", 
-                                     "numeric", "numeric", "numeric", 
-                                     "numeric"))
-
+```{r adding in year variable}
 #adding year variable:
 years <- c(2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018)
 
@@ -143,19 +175,27 @@ sba_2015 <- add_year(sba_2015, 8)
 sba_2016 <- add_year(sba_2016, 9)
 sba_2017 <- add_year(sba_2017, 10)
 sba_2018 <- add_year(sba_2018, 11)
+```
 
-
+```{r mergining sba disaster loan data into single dataframe}
 #binding columns:
 sba_merged_all<- bind_rows(sba_sandy, sba_2008, sba_2009, sba_2010, sba_2011, sba_2012, sba_2013,
                            sba_2014, sba_2015, sba_2016, sba_2017, sba_2018)
-
-#fill in the remainder of sandy variable:
-sba_merged_all$MBay_effect[is.na(sba_merged_all$MBay_effect)] <- 0
-
 #renaming zipcode:
 sba_merged_all <- sba_merged_all %>%
   rename(zipcode = `Damaged Property Zip Code`)
+```
 
+```{r finalizing MBay_effect}
+#stipulating value for all other MBay_effect != 1:
+sba_merged_all$MBay_effect[is.na(sba_merged_all$MBay_effect)] <- 0
+```
+
+**Conversion of Jurisdictions** 
+
+A challenge relating to the imputation of the data from SBA has been that the data is at it's most granular at the zipcode level. While we are thankful there is some inclusion of jursidiction in the data, we had hoped it would be at the county level since our predictor varaibles come from the U.S. census and are only available at that level. The challenge arises such that we need to include a further dataset to translate disaster loan amounts from zipcode to county.
+
+```{r reading in zipcode/FIPS conversion dataframe}
 #Now will wan to read in data for fips codes:
 ZIP_COUNTY_FIPS_2012_12 <- read_csv("data/ZIP-COUNTY-FIPS_2012-12.csv")
 
@@ -163,7 +203,8 @@ ZIP_COUNTY_FIPS_2012_12 <- read_csv("data/ZIP-COUNTY-FIPS_2012-12.csv")
 ZIP_COUNTY_FIPS_2012_12 <- ZIP_COUNTY_FIPS_2012_12 %>%
   rename(zipcode = ZIP) %>%
   select(zipcode, STCOUNTYFP)
-
+```
+```{r merging zipcode/FIPS to SBA disaster data}
 #merging on FIPS Codes:
 sba_merged_all <- sba_merged_all %>% 
   left_join(ZIP_COUNTY_FIPS_2012_12, by = "zipcode")
@@ -172,7 +213,15 @@ sba_merged_all <- sba_merged_all %>%
 sba_merged_all <- sba_merged_all %>%
   mutate(stateFIPS = substr(STCOUNTYFP, 1, 2), 
          countyFIPS = substr(STCOUNTYFP, 3, 5))
+```
 
+Moreover, as anyone who's crossed this path recognizes that zipcodes change from time to time and that they are not uniform within counties - in some instances crossing boundry lines. As such, we've created severalw weighted county-total and county-averages for variables:
+
+  - total verified content loss
+  - total content approved
+  - total EIDL approved
+
+```{r creating weighted county variables}
 #creating weight for countys with multiple zipcodes:
 sba_agg <- sba_merged_all %>% 
   group_by(zipcode, year) %>%
@@ -184,40 +233,47 @@ sba_merged_all <- left_join(sba_merged_all,
 
 sba_merged_all <- sba_merged_all %>%
   mutate(weighted_content_loan = `Approved Amount Content`/n,
-         weighted_loss_content = `Verified Loss Content`/n) 
+         weighted_loss_content = `Verified Loss Content`/n,
+         weighted_eidl_amount = `Approved Amount EIDL`/n) 
 
 sba_weighted <- sba_merged_all %>%
   group_by(countyFIPS, stateFIPS, year) %>%
   summarize(
     total_county_approved_content_loan = sum(weighted_content_loan),
     total_county_verified_content_loan = sum(weighted_loss_content),
+    total_county_eidl_loan = sum(weighted_eidl_amount),
     avg_county_approved_content_loan = weighted.mean(weighted_content_loan, weight = 1/n),
     avg_county_verified_content_loan = weighted.mean(weighted_loss_content, weight = 1/n),
-  )
+    avg_county_eidl_loan = weighted.mean(weighted_eidl_amount, weight = 1/n)
+    )
+```
 
+We weighted our variables by creating a count variable which indicated how many times a zipcode showed up by year in our merged sba_county dataset. We were then able to remerge that into our dataset and weighted our content loss, content loan, and EIDL loan by the count variable - thus splitting those amounts by the number of counties. For example that would indicate that a loan amount from a certain zipcode wholly contained in a county would not be impact, whereas a loan amount split between two counties would effectively be halfed between the two. We then took totals and averages by county and created separate variables. These will be the finalize dependent variable under consideration. 
+
+```{r merging weighted variables onto SBA disaster loan data}
 #now merging them all onto sba_merged 
 sba_merged_all <- left_join(sba_merged_all, 
                              sba_weighted,
                              by = c("countyFIPS", "stateFIPS", "year")) 
 
+#choosing specific variables:
 sba_merged_all <- sba_merged_all%>%
-  select(year, zipcode, countyFIPS, stateFIPS, `Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, MBay_effect, `SBA Disaster Number`)
+  select(`SBA Disaster Number`, year, zipcode, countyFIPS, stateFIPS, `Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan,total_county_eidl_loan, avg_county_eidl_loan, MBay_effect)
 ```
 
-For reading in county level data I'll create a function that allows input of NAICS codes for the top 10 industries provided PPP funding as of April 13th, 2020. (Although we can change this depending on the depth and detial of the industries we'd like to focus on. Currently we are looking at):
+### Predictor Variables: 
 
-- 23: Consturction 
-- 31-33: Manufacturing:
-- 42: Whole Sale
-- 44-45:Rtail Trade
-- 53: Real Estate Rental and Leasing
-- 54: Professional, Scientific and Technical Services
-- 56: Administrative and Support and Waste Management and Remediation Services
-- 62: Health Care and Social Assistance
-- 72: Accomodation and Food Services [WE MAY WANT TO CONSIDER MORE HERE]
-- 81: Other Services (expcept Public Administration)
+As mentioned earlier for our predictor variables originate from the [Economic Census](https://www.census.gov/data/developers/data-sets/economic-census.html) undertaken by the U.S. Census Bureau in five year increments (2007, 2012, 2017). According to the Census, the Economic Census is the official measure of the U.S.'s business and economy. As a survey it provides the statistical benchmark for economic activity and provides granular details on busienss size, employment numbers, sales and recipets as well as other important data. For our purposes, we are interested in number of employees, number of establishments, annual payroll, first-quarter payroll, and sales or revenue,
 
-```{r merging in Economic Census data from Census API, waring = F}
+**Predictor Variables in More Detail**
+
+- Number of Employees: TKTKTK
+- Number of Establishments: TKTKTK
+- Annual Payroll: TKTKTK
+- First Quarter Payroll: TKTKTK
+- Sales or Revenue: TKTKTK 
+
+```{r reading and merging in Economic Census data from Census API, waring = F}
 #2012 and 2007 include all the relevent NAICS data so will use for both dataframes
 NAICS0712 <- c("23", "31-33", "42", "44-45", "53", "54", "56", "62", "72", "81")
 
@@ -236,7 +292,26 @@ sba_census_2017 <- map_df(.x = NAICS2017,
                           .f = sba_api_2017)
 
 sba_census_merged <- bind_rows(sba_census_2007, sba_census_2012, sba_census_2017)
+```
 
+**North American Industry Classification System (NAICS) Limitations**
+
+One of the challenges related to the census level data is the need to specifiy NAICS codes to avoid crashing our systems. As such, I'll create a function that specifies the NAICS codes for the top 10 industries who recieved PPP funding as of April 13th, 2020. Those industries are: 
+
+- 23: Consturction 
+- 31-33: Manufacturing:
+- 42: Whole Sale
+- 44-45:Rtail Trade
+- 53: Real Estate Rental and Leasing
+- 54: Professional, Scientific and Technical Services
+- 56: Administrative and Support and Waste Management and Remediation Services
+- 62: Health Care and Social Assistance
+- 72: Accomodation and Food Services 
+- 81: Other Services (expcept Public Administration)
+
+While the rank of these industries is somewhat suspect when considering which industries are most likely to be [impacted by the crisis](https://www.brookings.edu/research/how-local-leaders-can-stave-off-a-small-business-collapse-from-covid-19/), they cover the majority of what would be likely to be impacted by the crisis. 
+
+```{r cleaning SBA census data and averaging predictor variables}
 sba_census_merged <- sba_census_merged %>%
   mutate(EMP = as.double(EMP),
          ESTAB = as.double(EMP),
@@ -254,7 +329,11 @@ sba_census_merged <- sba_census_merged %>%
 sba_census_merged <- sba_census_merged%>%
   rename(countyFIPS = county,
          stateFIPS = state)
+```
 
+We include our targed predictor variables from the census surveys taken in 2007, 2012, and 2017 and average them such that we recieve a 10-year average for each variable. We should note that there is no first quarter payroll included in 2007 data.
+
+```{r reading in COVID cases/deaths}
 #Adding in COVID cases/deaths 5.3.20:
 covid <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
 
@@ -266,14 +345,19 @@ covid <- covid %>%
   group_by(stateFIPS, countyFIPS) %>%
   summarise(covid_deaths = sum(deaths),
             covid_cases = sum(cases))
+```
 
+To further tie the prediction to the COVID crisis we also include data provided by the New York Times on their public [GitHub page](https://github.com/nytimes/covid-19-data), which includes the count of COVID cases and deaths by county. We have to manipulate the data somewhat to total the data over time to get an accurate total per county, which we then merge with our census data.
+
+```{r merging COVID and Census Data into single dataframe}
 #merging onto sba_census data:
 predictors <- sba_census_merged %>%
   left_join(covid, by = c("stateFIPS", "countyFIPS"))
-
 ```
 
-```{r merging census and SBA disaster data sets}
+With all that done we are then able to merge our SBA disaster loan data with our combined COVID/Census data to create a final datafram for machine learning analysis. 
+
+```{r merging census and SBA disaster datasets into single dataframe}
 #merging county and disaster numbers:
 sba_merged_final <- sba_merged_all %>% 
   left_join(predictors, by = c("countyFIPS" = "countyFIPS",
@@ -286,10 +370,6 @@ sba_merged_final <- sba_merged_all %>%
 #  mutate(duplicate = duplicated(sba_merged_final$`Total Verified Loss`)) %>%
 #  filter(duplicate == !(TRUE)) %>%
 #  select(-duplicate)
-```
-
-```{r quick check of the finalized dataset and variables}
-summary(sba_merged_final)
 ```
 
 ```{r checking out the data,  warning = F}
@@ -314,56 +394,12 @@ ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
 #Finding correlation
 
 sba_corr <- sba_merged_final %>%
-  select(`Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, covid_cases, covid_deaths, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, MBay_effect, emp, payann, rcptot, payqrt1)
+  select(`Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, covid_cases, covid_deaths, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, total_county_eidl_loan, avg_county_eidl_loan, MBay_effect, emp, payann, rcptot, payqrt1)
 
 cor(na.omit(sba_corr))
 ```
 
-
 ## Model specifications (DRAFT)
-
-**Variables under consideration**
-
-Dependent Variable:
-
-We have three potential variables for consideration: 
-
-- Total loan approved, 
-- Content loan approved 
-- EIDL approved amount.
-
-Our hunch is to lean towards the approved content loan as it would remove the real estate component from total loan amounts, since PPP loans are technically eligible for 250% of the last yeart of payroll. Moreover, while EIDL is a component of the SBA Paycheck protection program it's eligbility is more stringent which would mean that we could underestimate the prective amount.
-
-Independent Variables: 
-
-- The Micahel Bay factor:
-
-Because of high correlation with larger loan sizes and allows for us to engineer a scenario where all businesses are experiencing a major disaster.
-  
-- Business components:
-
-As it stands now, we have NAICS codes based upon the top 10 sectors receiving PPP as of a couple of weeks ago.Although this group can be expanded via the API in our code above request to go deeper and/or broader depending on if we want to highlight additional components. For example a recent Brookings[LINK] report break down industries into three different categories of risk, which could be an interesting additional indicator variable of at-risk industries that, like the Mbay factor, could give us some control about the size of relief.
-
-The other business component have been pulled from the Economic Census (as part of the U.S. Census), which is the official measure of the Nation’s businesses and economy. Conducted every five years, the survey serves as the statistical benchmark for current economic activity. The variables of interest include averages over 2007, 2012, and 2017 for:
-
-  - employee numnber, 
-  - number of establishments in the jurisdiction, 
-  - payroll,
-  - payroll of the first quarter,
-  - Sales and revenue value.
-
-Beyond these variables we are in further consideration on whether we want to specify size of the business by employee due to the eligibility requirements that no buisness over the size of 500 should be eligible. However, there are numerous reports indicating that firms with larger workforces have recieved loans. Therefore, it is important to note that for the purposes of this predictive model that we are [or are not] including businesses over 500 employees.
-
-Additionally, we are consdering the inculsion of further indicator variables to catagorize size of buisness for further identification of micro-businesses, which are more illiquid. It may be important to find a weighted variable to further capture the importance of business size. 
-
-We will also be including verified loss by the SBA during disaster analysis. There is a strong corelation between the approved amount and total verfied loss. We will need to explain why is considered in verified loss.
-Important to include because of correlation 
-
-Additional potential variables:
-
-- Geographic variable: Would it make sense to include a population density component for the data as well given that urban/rural distributions have an impact on buisness as well as potential virus impacts.
-
-- Time variable: Would we want to think through the ramifications on the size of loan if the crisis goes on longer than expected? If so, how do you think we could model this?
 
 **Algorithm Considerations: **
 
