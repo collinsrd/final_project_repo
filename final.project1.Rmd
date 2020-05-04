@@ -140,6 +140,23 @@ x = c("FL", "TX", "PR", "VI")
 sba_2017 <- sba_2017 %>%
   mutate(
 MBay_effect = ifelse(sba_2017$`Damaged Property State Code`%in% x, 1 ,0))
+
+#adding column for major disaster variable:
+agg_disasters <- sba_merged_final %>%
+  group_by(`SBA Disaster Number`) %>%
+  summarise(sum(`Total Approved Loan Amount`)) %>%
+  drop_na()
+
+names(agg_disasters)[2] <- "Total_Loans"
+
+Baysian_Disasters <- agg_disasters %>%
+  filter(Total_Loans > quantile(Total_Loans, 0.99))
+
+#Adding variable for top 1% of disasters
+x = c("TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033")
+sba_2017 <- sba_2017 %>%
+  mutate(
+MBay_effect = ifelse(sba_2017$`SBA Disaster Number`%in% x, 1 ,0))
 ```
 
 ```{r adding in year variable}
@@ -384,20 +401,6 @@ cor(na.omit(sba_corr))
 ```
 
 
-```{r Creating MBay}
-#We can take or leave this, but thought it'd be interesting to have a formal way to classify the huge disasters
-
-agg_disasters <- sba_merged_final %>%
-  group_by(`SBA Disaster Number`) %>%
-  summarise(sum(`Total Approved Loan Amount`)) %>%
-  drop_na()
-
-names(agg_disasters)[2] <- "Total_Loans"
-
-Baysian_Disasters <- agg_disasters %>%
-  filter(Total_Loans > quantile(Total_Loans, 0.99))
-```
-
 ## Model specifications (DRAFT)
 
 **Variables under consideration**
@@ -454,35 +457,19 @@ We think it would be good to have a couple options to help see which might help 
 
 ``` {r 3 Methods}
 set.seed(seed = 20200428)
-split <- initial_split(XXX, prop = 0.80)
+split <- initial_split(sba_merged_final, prop = 0.80)
 SBA_train <- training(split)
 SBA_test <- testing(split)
 SBA_resamples <- vfold_cv(data = SBA_train,
                           v = 10)
 
-#unsure what the code for random forests would be
 
-SBA_RF <- function(split, formula,...) {
-  recipe <- 
-    recipe(formula, data = analysis(split)) %>%
-    log vars %>%
-    prep()
-  analysis_data <- analysis(split) %>%
-    bake(object = recipe, new_data = .)
-  model <- linear_reg() %>%
-    set_engine(???) %>%
-    fit(formula, data = analysis_data)
-  assessment_data <- assessment(split) %>%
-    bake(object = recipe, new_data = .)
-  rmse <- bind_cols(
-    assessment_data,
-    predict(model, assessment_data)
-  ) %>%
-    rmse(truth = XXX, estimate = .pred) %>%
-    pull(.estimate)
-  
-  return(rmse)
-}
+#https://www.r-bloggers.com/how-to-implement-random-forests-in-r/
+
+SBA_RF <- randomForest(MBay_effect ~ ., data = na.exclude(SBA_train), importance = TRUE)
+
+#Looks like we'll need to impute missing vairables in order for this to work
+
 
 SBA_CART <- function(split, formula,...) {
   recipe <- 
