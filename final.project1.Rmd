@@ -267,11 +267,15 @@ As mentioned earlier for our predictor variables originate from the [Economic Ce
 
 **Predictor Variables in More Detail**
 
-- Number of Employees: TKTKTK
-- Number of Establishments: TKTKTK
-- Annual Payroll: TKTKTK
-- First Quarter Payroll: TKTKTK
-- Sales or Revenue: TKTKTK 
+- Number of Employees: As the U.S. Treasury explains the [PPP program](https://home.treasury.gov/system/files/136/PPP--Fact-Sheet.pdf) is eligible for firms with 500 employees or less - although there is numerous instances this [might not be the case](https://www.washingtonpost.com/business/2020/05/01/sba-ppp-public-companies/). While the implementation of the program has allowed for larger firms to take advange of the program, since the goal is to provide coverage for payroll, a larger number of employees would indicate the need for larger loan sizes.
+
+- Number of Establishments: The number of established firms in a jurisdiction influences since SBA loan performance measurea are largely [output-based](https://www.gao.gov/new.items/d08226t.pdf) as opposed to impact. As such, most SBA loan officers will likely prioritize areas with more establishments as opposed to fewers. As such, this variable is important to include. This output verus impact driven eligibility [isn't limited to only](https://crsreports.congress.gov/product/pdf/R/R43661) SBA loans.
+
+- Annual Payroll: As mentioned above, a large goal of the PPP is to provide coverage for small buisness payroll. As such, in applying for the PPP, borrowers [must submit their previous years' annual payroll](https://www.sba.com/funding-a-business/government-small-business-loans/ppp/loan-calculator/) for underwriting of the loan. As such it's one of the most critical variables to the model.
+
+- First Quarter Payroll: Additionally, for SBA PPP loans, monthly payroll is taken into account, such that no loan can be more than [250% of monthly payroll](https://taxfoundation.org/sba-paycheck-protection-program-cares-act/). Providing the 1st quarter payroll related to disaster may provide some clarity on what those loans would have been influenced by. This could also help to take into account some seasonanility in payroll flows.
+
+- Sales or Revenue: This variable is important particularly for SBA content and EIDL loans where the firm needs to prove a certain amount of economic injury. [A survery](https://www.fedsmallbusiness.org/survey/2018/report-on-disaster-affected-firms) by the Federal Reserve board found that in disaster-related lending that forgone revenues (not assets) were the largest source of loss.
 
 ```{r reading and merging in Economic Census data from Census API, waring = F}
 #2012 and 2007 include all the relevent NAICS data so will use for both dataframes
@@ -399,7 +403,7 @@ sba_corr <- sba_merged_final %>%
 cor(na.omit(sba_corr))
 ```
 
-## Model specifications (DRAFT)
+## Model specifications
 
 **Algorithm Considerations: **
 
@@ -408,7 +412,6 @@ We think it would be good to have a couple options to help see which might help 
 - Random Forests
 - Classic CART option
 - Linear Regression 
-
 
 ``` {r 3 Methods}
 set.seed(seed = 20200428)
