@@ -373,7 +373,6 @@ sba_merged_final <- sba_merged_all %>%
 #  select(-duplicate)
 ```
 
-
 ```{r checking out the data,  warning = F}
 ggplot(sba_merged_final, mapping = aes(x = rcptot, y = `Total Approved Loan Amount`)) +
   geom_point() +
