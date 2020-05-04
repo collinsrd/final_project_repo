@@ -113,27 +113,6 @@ sba_2017 <- read_excel("data/SBA_Disaster_Loan_Data_FY17_simple.xlsx",
                                      "text", "numeric", "numeric", "numeric", 
                                      "numeric", "numeric", "numeric", 
                                      "numeric"))
-<<<<<<< HEAD
-=======
-
-#adding column for major disaster variable:
-agg_disasters <- sba_merged_final %>%
-  group_by(`SBA Disaster Number`) %>%
-  summarise(sum(`Total Approved Loan Amount`)) %>%
-  drop_na()
-
-names(agg_disasters)[2] <- "Total_Loans"
-
-Baysian_Disasters <- agg_disasters %>%
-  filter(Total_Loans > quantile(Total_Loans, 0.99))
-
-#Adding variable for top 1% of disasters
-x = c("TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033")
-sba_2017 <- sba_2017 %>%
-  mutate(
-MBay_effect = ifelse(sba_2017$`SBA Disaster Number`%in% x, 1 ,0))
-
->>>>>>> 123f3ddd53ea0dc3a499a50471054a3c616c7719
 sba_2018 <- read_excel("data/SBA_Disaster_Loan_Data_FY18_simple.xlsx",
                        col_types = c("numeric", "numeric", "numeric", 
                                      "text", "text", "numeric", "text", 
@@ -161,6 +140,24 @@ x = c("FL", "TX", "PR", "VI")
 sba_2017 <- sba_2017 %>%
   mutate(
 MBay_effect = ifelse(sba_2017$`Damaged Property State Code`%in% x, 1 ,0))
+
+
+#adding column for major disaster variable:
+agg_disasters <- sba_merged_final %>%
+  group_by(`SBA Disaster Number`) %>%
+  summarise(sum(`Total Approved Loan Amount`)) %>%
+  drop_na()
+
+names(agg_disasters)[2] <- "Total_Loans"
+
+Baysian_Disasters <- agg_disasters %>%
+  filter(Total_Loans > quantile(Total_Loans, 0.99))
+
+#Adding variable for top 1% of disasters
+x = c("TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033")
+sba_2017 <- sba_2017 %>%
+  mutate(
+MBay_effect = ifelse(sba_2017$`SBA Disaster Number`%in% x, 1 ,0))
 ```
 
 ```{r adding in year variable}
