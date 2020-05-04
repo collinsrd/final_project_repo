@@ -413,6 +413,48 @@ We think it would be good to have a couple options to help see which might help 
 - Classic CART option
 - Linear Regression 
 
+``` {r Imputing Missing data}
+
+loan_missing <- sba_merged_final %>%
+  filter(is.na(`Verified Loss Content`))
+loan_nonmissing <-sba_merged_final %>%
+  filter(!is.na(`Verified Loss Content`))
+split <- initial_split(data = sba_merged_final prop = 0.8)
+missing_train <- training(split)
+missing_test <- testing(split)
+
+
+model <-
+  decision_tree(mode = "regression") %>%
+  set_engine("rpart") %>%
+  fit(VARS,
+      data = missing_train)
+
+bind_cols(
+  missing_test,
+  predict(model, missing_test)
+) %>%
+  metrics(truth = VAR,
+          estimate = .pred)
+
+loan_missing <-
+  select(-VAR) %>%
+  bind_cols(
+    VAR = predict(mdoel, loan_missing)
+  ) %>%
+  rename(price = .pred)
+
+SBA_merged_imputed <-
+  bind_rows(
+    diamonds_nonmissing,
+    diamonds_missing
+  )
+
+```
+
+
+
+
 ``` {r 3 Methods}
 set.seed(seed = 20200428)
 split <- initial_split(sba_merged_final, prop = 0.80)
