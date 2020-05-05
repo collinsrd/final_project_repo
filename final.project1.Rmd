@@ -464,7 +464,8 @@ SBA_merged_imputed <-
 
 
 ``` {r 3 Methods}
-sba_merged_model <- droplevels(sba_merged_final)
+sba_merged_model <- sba_merged_final %>%
+  select(Approved_Amount_Content, Verified_Loss_Content, payann, emp, rcptot)
 
 set.seed(seed = 20200428)
 split <- initial_split(sba_merged_model, prop = 0.80)
@@ -482,18 +483,23 @@ SBA_resamples <- vfold_cv(data = SBA_train,
 
 model_CART <- function(split, formula, ...) {
 
+  analysis_data <- analysis(split)
+
   model <-
     decision_tree(mode = "regression") %>%
-    set_engine(engine = "rpart") %>%
-    fit(formula,
-      data = SBA_train)
+    set_engine("rpart") %>%
+    fit(formula, data = analysis_data)
 
-  predictions_CART <- bind_cols(
-   SBA_test,
-    decision_tree = predict(model, SBA_test)
-)
+  assessment_data <- assessment(split)
+    
+  rmse <- bind_cols(
+    assessment_data,
+    predict(model, assessment_data)
+    ) %>%
+    rmse(truth = Approved_Amount_Content, estimate = .pred) %>%
+    pull(.estimate)
 
-  return(rsme)
+  return(rmse)
 }
 
 
@@ -501,10 +507,8 @@ model_CART <- function(split, formula, ...) {
 
 model_linear <- function(split, formula, ...) {
 
-  analysis_split <- analysis(split)
-  assessment_split <- assessment(split)
-  analysis_data <- analysis_split
-  assessment_data <- assessment_split
+  analysis_data <- analysis(split)
+  assessment_data <- assessment(split)
   model <-
     linear_reg() %>%
     set_engine("lm") %>%
@@ -515,10 +519,10 @@ model_linear <- function(split, formula, ...) {
     assessment_data,
     predict(model, assessment_data)
   ) %>%
-    rmse(truth = Approved_Loan_Content, estimate = .pred) %>%
+    rmse(truth = Approved_Amount_Content, estimate = .pred) %>%
     pull(.estimate)
   
-  return(rsme)
+  return(rmse)
 
 }
 
@@ -527,15 +531,26 @@ model_linear <- function(split, formula, ...) {
 SBA_resamples %>%
   mutate(
     rmse_CART1 = map_dbl(splits,
-                        .f = model_CART(split = .x,
-                                        formula = `Approved_Amount_Content` ~ `Verified_Loss_Content` + payann + emp + rcptot)),
+                        .f = ~model_CART(.x,
+                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + payann + emp + rcptot)),
     rmse_linear1 = map_dbl(.x = splits,
-                        .f = model_linear(split = .x,
-                                        formula = `Approved_Amount_Content` ~ `Verified_Loss_Content` + payann + emp + rcptot))) %>%
+                        .f = ~model_linear(.x,
+                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + payann + emp + rcptot))) %>%
       select(id, rmse_CART1, rmse_linear1)
                         
+SBA_resamples %>%
+  pivot_longer(-id) %>%
+  ggplot(aes(x = id, 
+             y = value,
+             color = name,
+             group = name)) +
+    geom_point() +
+  geom_line() +
+  scale_y_continuous(limits = c(0, NA))
 
-
+SBA_resamples %>%
+  summarize(mean(rmse_linear1),
+            mean(rmse_CART1))
 
 ```
 
