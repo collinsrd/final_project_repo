@@ -22,11 +22,15 @@ library(tidymodels)
 library(httr)
 library(jsonlite)
 library(randomForest)
+library(gridExtra)
 source("R/header.true.R")
 source("R/sba_api_2012.R")
 source("R/sba_api_2017.R")
 source("R/sba_api_2007.R")
 source("R/add_year.R")
+source("R/my_theme.R")
+source("R/SBA_CART.R")
+source("R/SBA_linear.R")
 ```
 
 ##Project Overview:
@@ -376,31 +380,93 @@ sba_merged_final <- sba_merged_all %>%
 #  select(-duplicate)
 ```
 
-```{r checking out the data,  warning = F}
-ggplot(sba_merged_final, mapping = aes(x = rcptot, y = `Total Approved Loan Amount`)) +
-  geom_point() +
-  geom_smooth() 
-
-ggplot(sba_merged_final, mapping = aes(x = payann, y = `Approved Amount Content`)) +
-  geom_point() +
-  geom_smooth() 
-
-ggplot(sba_merged_final, mapping = aes(x = `Verified Loss Content`, y = `Approved Amount Content`)) +
-  geom_point() +
-  geom_smooth() 
-
-ggplot(sba_merged_final, mapping = aes(x = log(`Approved Amount Content`))) +
-  geom_histogram() 
-  
-ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
-  geom_histogram()
-
+```{r checking out correlation}
 #Finding correlation
-
 sba_corr <- sba_merged_final %>%
-  select(`Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, covid_cases, covid_deaths, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, total_county_eidl_loan, avg_county_eidl_loan, MBay_effect, emp, payann, rcptot, payqrt1)
+  select(`Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, covid_cases, covid_deaths, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, total_county_eidl_loan, avg_county_eidl_loan, MBay_effect, emp, payann, rcptot, payqrt1, estab)
 
 cor(na.omit(sba_corr))
+```
+
+```{r checking out dependent variable, echo = F}
+#total_county_verified_content_loan
+p1 <- ggplot(sba_merged_final, mapping = aes(x = log(total_county_verified_content_loan))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme +
+  labs(x = "total verified loss")
+
+#avg_county_verified_content_loan
+p2 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_verified_content_loan))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme +
+  labs(x = "avg. content loan")
+
+#total_county_approved_content_loan
+p3 <- ggplot(sba_merged_final, mapping = aes(x = log(total_county_approved_content_loan))) +
+  geom_histogram() +
+  my_theme +
+  labs(x = "total content loan")
+
+#avg_county_approved_content_loan
+p4 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_approved_content_loan))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme +
+  labs(x = "avg. content loan")
+
+
+#total_county_eidl_loan
+p5 <- ggplot(sba_merged_final, mapping = aes(x = log(total_county_eidl_loan))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme +
+  labs(x = "total EIDL loan")
+
+
+#avg_county_eidl_loan
+p6 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_eidl_loan))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme +
+  labs(x = "avg. EIDL loan")
+
+```
+
+```{r dependent grid, warning = F}
+grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 2)
+```
+
+```{r checking out independent variables, echo = F}
+#number of employees:
+p7 <- ggplot(sba_merged_final, mapping = aes(x = log(emp))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme
+
+#number of establisments:
+p8 <- ggplot(sba_merged_final, mapping = aes(x = log(estab))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme
+
+#annual payroll:
+p9 <- ggplot(sba_merged_final, mapping = aes(x = log(payann))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme
+
+#payroll in the first quarter:
+p10 <- ggplot(sba_merged_final, mapping = aes(x = log(payqrt1))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme
+
+#sales or revenue:
+p11 <- ggplot(sba_merged_final, mapping = aes(x = log(rcptot))) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme
+
+#Micheal Bay effect:
+p12 <- ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
+  geom_histogram(binwidth = 0.35) +
+  my_theme
+```
+
+```{r independent grid, warning = F}
+grid.arrange(p7, p8, p9, p10, p11, p12, nrow = 2)
 ```
 
 ## Model specifications
@@ -422,15 +488,16 @@ names(sba_merged_final)[8] <- "Total_Approved_Loan_Amount"
 names(sba_merged_final)[9] <- "Approved_Amount_Content"
 names(sba_merged_final)[10] <- "Average_Amount_EIDL"
   
-
 loan_missing <- sba_merged_final %>%
   filter(is.na(`Approved_Amount_Content`))
+  
 loan_nonmissing <-sba_merged_final %>%
   filter(!is.na(`Approved_Amount_Content`))
+  
 split <- initial_split(data = sba_merged_final, prop = 0.8)
+
 missing_train <- training(split)
 missing_test <- testing(split)
-
 
 model <-
   decision_tree(mode = "regression") %>%
@@ -457,10 +524,15 @@ SBA_merged_imputed <-
     loan_nonmissing,
     loan_missing
   )
-
 ```
 
+Model formulas:
 
+ - avg_county_eidl_loan ~ avg_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect
+
+- total_county_eidl_loan ~ total_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect
+
+- avg_county_approved_content_loan ~ avg_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect
 
 
 ``` {r 3 Methods for Approved Content Loan Size }
@@ -473,14 +545,14 @@ SBA_train <- training(split)
 SBA_test <- testing(split)
 SBA_resamples <- vfold_cv(data = SBA_train,
                           v = 10)
+```
 
-
+```{r RandomForest algorithm}
 #https://www.r-bloggers.com/how-to-implement-random-forests-in-r/
 
 #SBA_RF <- randomForest(`Approved_Amount_Content` ~ ., data = SBA_merged_imputed, importance = TRUE)
 
 #CART
-
 model_CART <- function(split, formula, ...) {
 
   analysis_data <- analysis(split)
