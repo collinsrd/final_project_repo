@@ -463,9 +463,9 @@ SBA_merged_imputed <-
 
 
 
-``` {r 3 Methods}
-sba_merged_model <- sba_merged_final %>%
-  select(Approved_Amount_Content, Verified_Loss_Content, payann, emp, rcptot)
+``` {r 3 Methods for Approved Content Loan Size }
+sba_merged_model <- SBA_merged_imputed %>%
+  select(Approved_Amount_Content, Verified_Loss_Content, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths)
 
 set.seed(seed = 20200428)
 split <- initial_split(sba_merged_model, prop = 0.80)
@@ -532,11 +532,23 @@ SBA_resamples %>%
   mutate(
     rmse_CART1 = map_dbl(splits,
                         .f = ~model_CART(.x,
-                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + payann + emp + rcptot)),
+                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + estab + rcptot + MBay_effect)),
     rmse_linear1 = map_dbl(.x = splits,
                         .f = ~model_linear(.x,
-                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + payann + emp + rcptot))) %>%
-      select(id, rmse_CART1, rmse_linear1)
+                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + estab + rcptot + MBay_effect)),
+  rmse_CART2 = map_dbl(splits,
+                        .f = ~model_CART(.x,
+                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + estab + rcptot + covid_deaths + MBay_effect)),
+    rmse_linear2 = map_dbl(.x = splits,
+                        .f = ~model_linear(.x,
+                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + estab + rcptot + covid_deaths + MBay_effect)),
+  rmse_CART3 = map_dbl(splits,
+                        .f = ~model_CART(.x,
+                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + MBay_effect)),
+    rmse_linear3 = map_dbl(.x = splits,
+                        .f = ~model_linear(.x,
+                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + MBay_effect))) %>%
+      select(id, rmse_CART1, rmse_linear1, rmse_CART2, rmse_linear2, rmse_CART3, rmse_linear3)
                         
 SBA_resamples %>%
   pivot_longer(-id) %>%
@@ -554,8 +566,107 @@ SBA_resamples %>%
 
 ```
 
-``` {r Evaluate Models}
 
+``` {r 3 Methods for Approved Content Loan Size }
+sba_merged_model <- sba_merged_final %>%
+  select(Approved_Amount_Content, Verified_Loss_Content, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths, total_county_approved_content_loan, Total_Verified_Loss)
+
+set.seed(seed = 20200428)
+split <- initial_split(sba_merged_model, prop = 0.80)
+SBA_train <- training(split)
+SBA_test <- testing(split)
+SBA_resamples <- vfold_cv(data = SBA_train,
+                          v = 10)
+
+
+#https://www.r-bloggers.com/how-to-implement-random-forests-in-r/
+
+SBA_RF <- randomForest(`Approved_Amount_Content` ~ ., data = na.exclude(sba_merged_model), importance = TRUE)
+
+#CART
+
+model_CART <- function(split, formula, ...) {
+
+  analysis_data <- analysis(split)
+
+  model <-
+    decision_tree(mode = "regression") %>%
+    set_engine("rpart") %>%
+    fit(formula, data = analysis_data)
+
+  assessment_data <- assessment(split)
+    
+  rmse <- bind_cols(
+    assessment_data,
+    predict(model, assessment_data)
+    ) %>%
+    rmse(truth = total_county_approved_content_loan, estimate = .pred) %>%
+    pull(.estimate)
+
+  return(rmse)
+}
+
+
+#linear
+
+model_linear <- function(split, formula, ...) {
+
+  analysis_data <- analysis(split)
+  assessment_data <- assessment(split)
+  model <-
+    linear_reg() %>%
+    set_engine("lm") %>%
+    fit(formula,
+        data = analysis_data)
+
+  rmse <- bind_cols(
+    assessment_data,
+    predict(model, assessment_data)
+  ) %>%
+    rmse(truth = total_county_approved_content_loan, estimate = .pred) %>%
+    pull(.estimate)
+  
+  return(rmse)
+
+}
+
+#Compare RMSE
+
+SBA_resamples %>%
+  mutate(
+    rmse_CART1 = map_dbl(splits,
+                        .f = ~model_CART(.x,
+                                        formula = total_county_approved_content_loan ~ Total_Verified_Loss + emp + estab + rcptot + MBay_effect)),
+    rmse_linear1 = map_dbl(.x = splits,
+                        .f = ~model_linear(.x,
+                                        formula = total_county_approved_content_loan ~ Total_Verified_Loss + emp + estab + rcptot + MBay_effect)),
+  rmse_CART2 = map_dbl(splits,
+                        .f = ~model_CART(.x,
+                                        formula = total_county_approved_content_loan ~ Total_Verified_Loss + emp + estab + rcptot + covid_deaths + MBay_effect)),
+    rmse_linear2 = map_dbl(.x = splits,
+                        .f = ~model_linear(.x,
+                                        formula = total_county_approved_content_loan ~ Total_Verified_Loss + emp + estab + rcptot + covid_deaths + MBay_effect)),
+  rmse_CART3 = map_dbl(splits,
+                        .f = ~model_CART(.x,
+                                        formula = Approved_Amount_Content ~ Total_Verified_Loss + emp + MBay_effect)),
+    rmse_linear3 = map_dbl(.x = splits,
+                        .f = ~model_linear(.x,
+                                        formula = Approved_Amount_Content ~ Total_Verified_Loss + emp + MBay_effect))) %>%
+      select(id, rmse_CART1, rmse_linear1, rmse_CART2, rmse_linear2, rmse_CART3, rmse_linear3)
+                        
+SBA_resamples %>%
+  pivot_longer(-id) %>%
+  ggplot(aes(x = id, 
+             y = value,
+             color = name,
+             group = name)) +
+    geom_point() +
+  geom_line() +
+  scale_y_continuous(limits = c(0, NA))
+
+SBA_resamples %>%
+  summarize(mean(rmse_linear1),
+            mean(rmse_CART1))
 
 ```
 
