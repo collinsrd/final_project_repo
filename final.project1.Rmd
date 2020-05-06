@@ -605,8 +605,8 @@ sba_rf_total <- ranger(
 final_recipe<- 
     recipe(formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
                                           emp + payann + rcptot + payqrt1 + estab + covid_cases + 
-                                          covid_deaths + MBay_effect, 
-           data = analysis(split)) %>%
+                                          covid_deaths + MBay_effect,
+           data = SBA_train) %>%
     step_log(total_county_verified_content_loan, offset = 0.00001) %>%
     step_log(emp, offset = 0.00001) %>%
     step_log(payann, offset = 0.00001) %>%
@@ -615,25 +615,34 @@ final_recipe<-
     step_log(estab, offset = 0.00001) %>% 
     prep()
 
-  
-
 final_model <- decision_tree(mode = "regression") %>%
     set_engine("rpart") %>%
     fit(formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
                                           emp + payann + rcptot + payqrt1 + estab + covid_cases + 
-                                          covid_deaths + MBay_effect, , data = SBA_train)
-
-  
-rmse <- bind_cols(
-  bake(final_recipe, new_data = SBA_train),
-  pred = predict(final_model, bake(final_recipe, new_data = SBA_train)) %>%
+                                          covid_deaths + MBay_effect, data = SBA_train)
+final_rsme <- bind_cols(
+  bake(final_recipe, new_data = SBA_test),
+  pred = predict(final_model, bake(final_recipe, new_data = SBA_test)) 
+  )%>%
   rmse(truth = avg_county_eidl_loan, estimate = .pred) %>%
   pull(.estimate)
 
-
+final_rsme
 ```
 How to calculate PPP loans: 
 https://www.sba.gov/sites/default/files/2020-04/How-to-Calculate-Loan-Amounts.pdf
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

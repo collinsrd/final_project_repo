@@ -509,10 +509,8 @@ sba_merged_all &lt;- sba_merged_all%&gt;%
 NAICS0712 &lt;- c(&quot;23&quot;, &quot;31-33&quot;, &quot;42&quot;, &quot;44-45&quot;, &quot;53&quot;, &quot;54&quot;, &quot;56&quot;, &quot;62&quot;, &quot;72&quot;, &quot;81&quot;)
 
 sba_census_2007 &lt;- map_df(.x = NAICS0712,
-                          .f = sba_api_2007)</code></pre>
-<pre><code>## Warning: `as_tibble.matrix()` requires a matrix with column names or a `.name_repair` argument. Using compatibility `.name_repair`.
-## This warning is displayed once per session.</code></pre>
-<pre class="r"><code>#Noting there is NO PAYQRT1 variable available for 2007.
+                          .f = sba_api_2007)
+#Noting there is NO PAYQRT1 variable available for 2007.
 
 #run for each year and NAICS code and the merge into three dataframes:
 sba_census_2012 &lt;- map_df(.x = NAICS0712,
@@ -778,27 +776,17 @@ SBA_resamples %&gt;%
 <pre><code>## # A tibble: 10 x 5
 ##    id     rmse_CARTavg rmse_linearavg rmse_CARTtotal rmse_lineartotal
 ##    &lt;chr&gt;         &lt;dbl&gt;          &lt;dbl&gt;          &lt;dbl&gt;            &lt;dbl&gt;
-##  1 Fold01       23328.         32764.       1115541.         3349440.
-##  2 Fold02       29290.         37952.       1178843.         3578930.
-##  3 Fold03       23451.         30630.       1133188.         3512224.
-##  4 Fold04       23648.         32034.       1173952.         3587560.
-##  5 Fold05       24973.         30577.       1154983.         3616028.
-##  6 Fold06       25704.         33653.       1152895.         3640221.
-##  7 Fold07       24256.         33979.       1181646.         3561893.
-##  8 Fold08       29034.         35217.       1130995.         3668324.
-##  9 Fold09       29895.         34469.       1166101.         3731329.
-## 10 Fold10       31140.         37890.       1018628.         3603311.</code></pre>
-<pre class="r"><code>#SBA_resamples %&gt;%
-#  pivot_longer(-id) %&gt;%
-#  ggplot(aes(x = id, 
-#             y = value,
-#             color = name,
-#             group = name)) +
-#    geom_point() +
-#  geom_line() +
-#  scale_y_continuous(limits = c(0, NA))
-
-SBA_resamples %&gt;%
+##  1 Fold01       24702.         34254.       1116918.         3801105.
+##  2 Fold02       26288.         35094.       1119135.         3719122.
+##  3 Fold03       26592.         34829.       1133785.         3374392.
+##  4 Fold04       25384.         38440.       1047924.         3471379.
+##  5 Fold05       26819.         34835.       1147993.         3650599.
+##  6 Fold06       22312.         32280.       1183847.         3716613.
+##  7 Fold07       23779.         32664.       1142491.         3954451.
+##  8 Fold08       24410.         32190.       1160428.         3335033.
+##  9 Fold09       24292.         33881.       1127954.         3749389.
+## 10 Fold10       22901.         32266.       1141917.         3405909.</code></pre>
+<pre class="r"><code>SBA_resamples %&gt;%
   summarize(mean(rmse_linearavg),
             mean(rmse_CARTavg),
             mean(rmse_CARTtotal),
@@ -806,7 +794,7 @@ SBA_resamples %&gt;%
 <pre><code>## # A tibble: 1 x 4
 ##   `mean(rmse_lineara… `mean(rmse_CARTav… `mean(rmse_CARTtot… `mean(rmse_lineart…
 ##                 &lt;dbl&gt;              &lt;dbl&gt;               &lt;dbl&gt;               &lt;dbl&gt;
-## 1              33917.             26472.            1140677.            3584926.</code></pre>
+## 1              34073.             24748.            1132239.            3617799.</code></pre>
 <p>clear that the averages with CART do better. I’d bet that random forests would do even better.</p>
 <pre class="r"><code>#pre-process:
 sba_merged_model_rf &lt;- sba_merged_final %&gt;%
@@ -833,7 +821,7 @@ sba_rf_avg &lt;- ranger(
 )
 
 (avg_rmse &lt;- sqrt(sba_rf_avg$prediction.error))</code></pre>
-<pre><code>## [1] 15328.06</code></pre>
+<pre><code>## [1] 14793.39</code></pre>
 <pre class="r"><code>n_features1 &lt;- length(setdiff(names(SBA_train_rf), &quot;total_county_eidl_loan&quot;))
 
 sba_rf_total &lt;- ranger(
@@ -848,7 +836,34 @@ sba_rf_total &lt;- ranger(
 )
 
 (total_rmse &lt;- sqrt(sba_rf_total$prediction.error))</code></pre>
-<pre><code>## [1] 79702.05</code></pre>
+<pre><code>## [1] 76537.3</code></pre>
+<pre class="r"><code>final_recipe&lt;- 
+    recipe(formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
+                                          emp + payann + rcptot + payqrt1 + estab + covid_cases + 
+                                          covid_deaths + MBay_effect,
+           data = SBA_train) %&gt;%
+    step_log(total_county_verified_content_loan, offset = 0.00001) %&gt;%
+    step_log(emp, offset = 0.00001) %&gt;%
+    step_log(payann, offset = 0.00001) %&gt;%
+    step_log(rcptot, offset = 0.00001) %&gt;%
+    step_log(payqrt1, offset = 0.00001) %&gt;% 
+    step_log(estab, offset = 0.00001) %&gt;% 
+    prep()
+
+final_model &lt;- decision_tree(mode = &quot;regression&quot;) %&gt;%
+    set_engine(&quot;rpart&quot;) %&gt;%
+    fit(formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
+                                          emp + payann + rcptot + payqrt1 + estab + covid_cases + 
+                                          covid_deaths + MBay_effect, data = SBA_train)
+final_rsme &lt;- bind_cols(
+  bake(final_recipe, new_data = SBA_test),
+  pred = predict(final_model, bake(final_recipe, new_data = SBA_test)) 
+  )%&gt;%
+  rmse(truth = avg_county_eidl_loan, estimate = .pred) %&gt;%
+  pull(.estimate)
+
+final_rsme</code></pre>
+<pre><code>## [1] 38148.44</code></pre>
 <p>How to calculate PPP loans: <a href="https://www.sba.gov/sites/default/files/2020-04/How-to-Calculate-Loan-Amounts.pdf" class="uri">https://www.sba.gov/sites/default/files/2020-04/How-to-Calculate-Loan-Amounts.pdf</a></p>
 </div>
 
