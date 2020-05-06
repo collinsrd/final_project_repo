@@ -38,7 +38,7 @@ source("R/model_CART_total.R")
 source("R/model_linear_total.R")
 ```
 
-## Project Overview:
+## Project Overview
 
 With the coronavirus pandemic having upended life as we know it, many governments from around the world have instituted massive lockdowns on economic activity to slow the spread of the virus and protect vulnerable segments of the population. Unfortunately, these measures also carry a significant economic cost. In the United States alone, they have resulted in [26 million jobs losses](https://www.npr.org/sections/coronavirus-live-updates/2020/04/23/841876464/26-million-jobs-lost-in-just-5-weeks) since March and umemployment rates predicted at almost 20%. This has forced many households into a full-scale retreat from consumption and put many industries and businesses in serious threat of [bankruptcy and insolvency](https://www.nytimes.com/2020/05/03/business/j-crew-bankruptcy-coronavirus.html). As a result, the federal government through several rounds of legislative action have tried to stem the economic losses through several lending programs. One - the [Paycheck Protection Program (PPP)](https://www.sba.gov/funding-programs/loans/coronavirus-relief-options/paycheck-protection-program) - administered by the Small Business Administration (SBA) was intended to provide businesses under 500 employees the wherewithal to withstand the immediate economic downturn with minimal loss. The original funding stipulated was [$250 billion dollars](https://www.congress.gov/bill/116th-congress/senate-bill/3548/text?q=product+update).
 
@@ -48,7 +48,7 @@ There is one thing for certain - that the program experienced massive demand - s
 
 While the COVID-19 pandemic is a classic black swan event in relation to other historic disaster events, SBA and federal agencies could perhaps have been better prepared to predict the specific demand needed for the program. It is the goal of this project to predict what was the average loan amount for the Paycheck Protection Program should be based upon previous disaster loan approvals. While this is not an apples to apples comparison, the hope is that we find a generally useful future guide for loan practitioners and understand just how much of an outlier this crisis has and continues to be.
 
-## Data for consideration:
+## Data for consideration
 
 ### Dependent Variable:
 
@@ -260,7 +260,7 @@ As mentioned earlier for our predictor variables originate from the [Economic Ce
 
 **North American Industry Classification System (NAICS) Limitations**
 
-One of the challenges related to the census level data is the need to specify NAICS codes to avoid crashing our systems. As such, we created a function that specifies the NAICS codes for the top 10 industries who received PPP funding as of April 13th, 2020. Those industries are: 
+One of the challenges related to the census level data requests from the Census API is the need to specify NAICS codes to avoid crashing our systems. As such, we created a function that specifies the NAICS codes for the top 10 industries who received PPP funding as of April 13th, 2020. Those industries are: 
 
 - 23: Construction 
 - 31-33: Manufacturing:
@@ -319,6 +319,8 @@ sba_census_merged <- sba_census_merged%>%
   rename(countyFIPS = county,
          stateFIPS = state)
 ```
+
+**COVID-19 Cases and Deaths**
 
 To further tie the prediction to the COVID crisis we also include data provided by the New York Times on their public [GitHub page](https://github.com/nytimes/covid-19-data), which includes the count of COVID cases and deaths by county. We have to manipulate the data somewhat to total the data over time to get an accurate total per county, which we then merge with our census data.
 
@@ -404,7 +406,7 @@ sba_corr
 
 As we can see from the correlation output there are strong relationships with our predictor variables. At first blush it looks like our averaged dependents might have better connections than our totals.
 
-**Choice Between county approved content loans and EIDL loans:**
+**Choice Between county approved content loans and EIDL loans**
 
 As mentioned earlier - we're looking to limit our formulas to two dependent variables to limit the complexity of the models later. There are promising reasons for each variable, but it would be worth checking the data plots.
 
@@ -493,13 +495,23 @@ p12 <- ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
 
 ```{r independent grid, warning = F}
 grid.arrange(p7, p8, p9, p10, p11, p12, nrow = 2)
+
+#TOP:
+#P7 = number of employees:
+#P8 = number of establisments:
+#P9 = annual payroll:
+
+#BOTTOM:
+#P10 = payroll in the first quarte
+#P11 = sales or revenue
+#P12 = Micheal Bay effect
 ```
 
 All the plots created above included `log()` transformations. It is clear we will need additional preprocessing steps to also include this transformation. 
 
-## Model specifications:
+## Model Specifications
 
-**Algorithm Considerations: **
+### Algorithm Considerations
 
 We think it would be good to have a couple options to help see which might help the model fit better. Specifically:
 
@@ -541,7 +553,7 @@ gg_miss_upset(sba_merged_model) #checking about relationship between the variabl
 
 As the earlier graph indicated a lot of the data's missing values are within the covid-related data and the payroll for the first quarter . While there is some relationship across the missing values, we feel confident it isn't going to greatly impact the estimations of the models nor remove incredibly useful information from our estimations since it wasn't an available prodcut of Census in 2007.
 
-### Pre-Processing: 
+**Pre-Processing**
 
 - As mentioned earlier most of our dependent variable will be transformed with a `step_log()` command. these include our number of employees, annual payroll, number of estabilishment, payroll for the first quarter, and the firm’s revenue and sales. COVID cases and deaths as well as our Michael Bay factor will not be transormed. We have also included a command to offset the values due numerous observations in all variables equal to zero.
   
@@ -561,7 +573,7 @@ SBA_resamples <- vfold_cv(data = SBA_train,
                           v = 10)
 ```
 
-### Error Term:
+**Error Term**
 
 When comparing models, we elected to use Root Mean Squared Error (RMSE) to estimate model error. RMSE was chosen because of its flexibility for both CART and linear regression. RMSE also weighs outliers more heavily, and since this economic crisis is, by definition, an outlier - we think it is important to base our model's estimations on an error term more influenced by outlier observations.
 
@@ -618,7 +630,7 @@ SBA_resamples %>%
 
 It's clear from this model that our **Averaged CART** does the best job among the four model options. This tracks with our intuition: this are a complex model with many variables and is more naturally suited to a decision tree model than a simple linear model. Taking this logic one step further we attempted to run a random forests model to further reduce RMSE. 
 
-**SAMPLE Random Forest Test**
+**Random Forest Test**
 
 We wanted to try our hand at a random forest algorithm but couldn't process it across folds in a resample so supplied two instances against the trainingt dataset.
 
@@ -702,7 +714,6 @@ final_rmse <- bind_cols(
 
 
 final_rmse
-
 ```
 
 As we can see from the final output there has been a slight uptick in the RMSE when running our model through our testing data. Our estimate becomes approximately $12,000 less accurate in predicting what EIDL loan sizes would be from natural disasters. We believe this isn't a terrible conclusion but believe it clearly points to areas of improvement, which we will discuss later.
