@@ -23,9 +23,9 @@ After testing both a linear and decision-tree regression model, it was clear tha
 Having a model like this available to policymakers as they craft policy with as much as uncertainty as PPP would enable better policy outcomes and proper funding of programs, eliminating situtations similar to the one faced at the outset of this program. Moreover, we believe the creation of the Michael Bay effect could help to engingeer a stronger prediction in future data, since we can in short tweak the variable to anticipate how much of an outlier the coronavirus pandemic has been. In short, we could try to predict what loan sizes would be had Harvey, Maria, or Sandy hit the entire country as opposed to specific states.
 
 
-## Pages
-* [Halfway Check-In](https://afclegg.github.io/final_project_repo/final.project)
-* [Model Creation](https://afclegg.github.io/final_project_repo/final.project1)
+## Final Model
+* [Model Webpage](https://afclegg.github.io/final_project_repo/final.project1)
+This page also includes a more thorough explanation of the model and the parameters chosen.
 
 ## PPP Resources
 * [SBA PPP Homepage] (https://www.sba.gov/funding-programs/loans/coronavirus-relief-options/paycheck-protection-program)
