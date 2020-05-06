@@ -21,9 +21,11 @@ library(tidyverse)
 library(tidymodels)
 library(httr)
 library(jsonlite)
-library(ranger)
-library(h2o)
 library(gridExtra)
+library(visdat)
+library(UpSetR)
+library(naniar)
+library(ranger)
 source("R/header.true.R")
 source("R/sba_api_2012.R")
 source("R/sba_api_2017.R")
@@ -126,7 +128,6 @@ sba_2018 <- read_excel("data/SBA_Disaster_Loan_Data_FY18_simple.xlsx",
                                      "text", "numeric", "numeric", "numeric", 
                                      "numeric", "numeric", "numeric", 
                                      "numeric"))
-
 ```
 
 
@@ -157,33 +158,9 @@ sba_merged_all <- sba_merged_all %>%
   rename(zipcode = `Damaged Property Zip Code`)
 ```
 
-
-For our dependent variable, we are looking at the specific "Approved Content Loan Amount," available within the SBA data. SBA disaster dataset includes several data sources of which approved content, we believe, to be the most comparable. Specifically, the data include verified losse and approved amounts. The losses and amounts are separated into "total", "real estate", and "content." We believe that content amount and content loss are important variables because the account for the total loss/approved amount related to the non-physical property related damages including inventory, equipment and other goods/services related loss.  
+For our dependent variable, we are looking at the specific "Approved Content Loan Amount," available within the SBA data. SBA disaster dataset includes several data sources of which approved content, we believe, to be the most comparable. Specifically, the data include verified losse and approved amounts. The losses and amounts are separated into "total", "real estate", and "content." We believe that content amount and content loss are important variables because the account for the total loss/approved amount related to the non-physical property related damages including inventory, equipment and other goods/services related loss. 
 
 which the specific amount approved by SBA for the content a business lost in the disaster. We believe this is a useful proxy for PPP loan amounts provided they are only eligble to be used for payroll and some fixed costs. We are also looking at the SBA's Economic Injury Disaster Loan amounts as they are more comparable to the current circunstances businesses are facing with COVID.
-
-**Michael Bay Effect**
-
-We are also adding in an additional indicator variable to demarcate unusually significant natural disasters, which we are delineating as the top 1% of disasters. This includes storms such as Hurricane Sandy (2012), Hurricane Maria (2017), and Hurricane Harvey (2017) - all of which cause unusally high amounts of damange. All other disasters will recieve a value equal to zero. It is our hope that during the model training process we may be able to amplify the impact of a disaster, such that we can show what the cost might be were a major disaster such as Sandy, Maria, or Harvey to hit the entire country like the COVID virus has.
-
-```{Mbay extra chunk}
-#adding column for major disaster variable:
-agg_disasters <- sba_merged_final %>%
-  group_by(`SBA Disaster Number`) %>%
-  summarise(sum(`Total Approved Loan Amount`)) %>%
-  drop_na()
-
-names(agg_disasters)[2] <- "Total_Loans"
-
-Baysian_Disasters <- agg_disasters %>%
-  filter(Total_Loans > quantile(Total_Loans, 0.99))
-
-#Adding variable for top 1% of disasters
-x = c("TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033")
-sba_merged_all <- sba_merged_all %>%
-  mutate(
-MBay_effect = ifelse(sba_2017$`SBA Disaster Number`%in% x, 1 ,0))
-```
 
 **Conversion of Jurisdictions** 
 
@@ -198,6 +175,7 @@ ZIP_COUNTY_FIPS_2012_12 <- ZIP_COUNTY_FIPS_2012_12 %>%
   rename(zipcode = ZIP) %>%
   select(zipcode, STCOUNTYFP)
 ```
+
 ```{r merging zipcode/FIPS to SBA disaster data}
 #merging on FIPS Codes:
 sba_merged_all <- sba_merged_all %>% 
@@ -248,18 +226,18 @@ We weighted our variables by creating a count variable which indicated how many 
 #now merging them all onto sba_merged 
 sba_merged_all <- left_join(sba_merged_all, 
                              sba_weighted,
-                             by = c("countyFIPS", "stateFIPS", "year")) 
+                             by = c("countyFIPS", "stateFIPS", "year"))
 
 #choosing specific variables:
 sba_merged_all <- sba_merged_all%>%
-  select(`SBA Disaster Number`, year, zipcode, countyFIPS, stateFIPS, `Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan,total_county_eidl_loan, avg_county_eidl_loan, MBay_effect)
+  select(`SBA Disaster Number`, `Total Approved Loan Amount`, year, zipcode, countyFIPS, stateFIPS, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan,total_county_eidl_loan, avg_county_eidl_loan)
 ```
 
 ### Predictor Variables: 
 
 As mentioned earlier for our predictor variables originate from the [Economic Census](https://www.census.gov/data/developers/data-sets/economic-census.html) undertaken by the U.S. Census Bureau in five year increments (2007, 2012, 2017). According to the Census, the Economic Census is the official measure of the U.S.'s business and economy. As a survey it provides the statistical benchmark for economic activity and provides granular details on busienss size, employment numbers, sales and recipets as well as other important data. For our purposes, we are interested in number of employees, number of establishments, annual payroll, first-quarter payroll, and sales or revenue,
 
-**Predictor Variables in More Detail**
+**Small Business Economic Census Data**
 
 - Number of Employees: As the U.S. Treasury explains the [PPP program](https://home.treasury.gov/system/files/136/PPP--Fact-Sheet.pdf) is eligible for firms with 500 employees or less - although there is numerous instances this [might not be the case](https://www.washingtonpost.com/business/2020/05/01/sba-ppp-public-companies/). While the implementation of the program has allowed for larger firms to take advange of the program, since the goal is to provide coverage for payroll, a larger number of employees would indicate the need for larger loan sizes.
 
@@ -353,67 +331,93 @@ predictors <- sba_census_merged %>%
   left_join(covid, by = c("stateFIPS", "countyFIPS"))
 ```
 
-With all that done we are then able to merge our SBA disaster loan data with our combined COVID/Census data to create a final datafram for machine learning analysis. 
+**Michael Bay Effect**
+
+We are also adding in an additional indicator variable to demarcate unusually significant natural disasters, which we are delineating as the top 1% of disasters. This includes storms such as Hurricane Sandy (2012), Hurricane Maria (2017), and Hurricane Harvey (2017) - all of which cause unusally high amounts of damange. All other disasters will recieve a value equal to zero. It is our hope that during the model training process we may be able to amplify the impact of a disaster, such that we can show what the cost might be were a major disaster such as Sandy, Maria, or Harvey to hit the entire country like the COVID virus has.
+
+```{r Micheal Bay Effect Variable}
+#adding column for major disaster variable:
+agg_disasters <- sba_merged_all %>%
+  group_by(`SBA Disaster Number`) %>%
+  summarise(sum(`Total Approved Loan Amount`)) %>%
+  drop_na()
+
+names(agg_disasters)[2] <- "Total_Loans"
+
+Baysian_Disasters <- agg_disasters %>%
+  filter(Total_Loans > quantile(Total_Loans, 0.99))
+#Provides the disasters in the highest 1%, which are:
+#"TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033"
+
+#Adding variable for top 1% of disasters
+x = c("TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033")
+sba_merged_all <- sba_merged_all %>%
+  mutate(
+MBay_effect = ifelse(sba_merged_all$`SBA Disaster Number`%in% x, 1 ,0))
+```
+
+With all that done we are then able to merge our SBA disaster loan data with our combined COVID/Census data to create a final dataframe for machine learning analysis. 
 
 ```{r merging census and SBA disaster datasets into single dataframe}
 #merging county and disaster numbers:
 sba_merged_final <- sba_merged_all %>% 
   left_join(predictors, by = c("countyFIPS" = "countyFIPS",
                                "stateFIPS" = "stateFIPS"))
-
-#rename some target variables:
-names(sba_merged_final)[1] <- "SBA_Disaster_Number" 
-names(sba_merged_final)[6] <- "Total_Verified_Loss"
-names(sba_merged_final)[7] <- "Verified_Loss_Content"
-names(sba_merged_final)[8] <- "Total_Approved_Loan_Amount"
-names(sba_merged_final)[9] <- "Approved_Amount_Content"
-names(sba_merged_final)[10] <- "Average_Amount_EIDL"
 ```
 
+### Exploring the Data Further:
 
-```{r checking out correlation}
+Now that there is a centralized dataset including SBA disaster loan totals and economic census data from counties we will test for the relationships between the variables to help configure the model formulas we plan to use during the machine learning training and testing later. To reiterate or key depedence variables for consideration are avg/total county EDIL loans and avg/total county content loan amounts. We would like to narrow these to either EIDL or county content to minimize the number of potential models for consideration. 
+
+First we want to check out the correlation between the variables:
+
+**Correlation Betweeen Variables**
+
+```{r checking out correlation, echo = F, warning = F}
 #Finding correlation
 sba_corr <- sba_merged_final %>%
-  select(total_county_eidl_loan, avg_county_eidl_loan, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, MBay_effect, emp, payann, rcptot, payqrt1, estab, covid_cases, covid_deaths)
+  select(total_county_eidl_loan, avg_county_eidl_loan, total_county_approved_content_loan, avg_county_approved_content_loan, total_county_verified_content_loan, avg_county_verified_content_loan, MBay_effect, emp, payann, rcptot, payqrt1, estab, covid_cases, covid_deaths)
 
-cor(na.omit(sba_corr))
+names_corr <- c("total_county_eidl_loan", "avg_county_eidl_loan", "total_county_approved_content_loan", "avg_county_approved_content_loan", "total_county_verified_content_loan", "avg_county_verified_content_loan", "MBay_effect", "emp", "payann", "rcptot", "payqrt1", "estab", "covid_cases", "covid_deaths")
+
+sba_corr <- as.tibble(cor(na.omit(sba_corr)))
+
+sba_corr <- sba_corr %>%
+  mutate(names = names_corr) %>%
+  select(names, total_county_eidl_loan, avg_county_eidl_loan, total_county_approved_content_loan, avg_county_approved_content_loan)
 ```
 
+```{r correlations}
+sba_corr
+```
+
+As we can see from the correlation output there are strong relationships with our predictor variables. At first blush it looks like our averaged depedents might have better connections than our totals. To
+
+**Choice Between county approved content loans and EIDL loans**
+
+As mentioned earlier - we're looking to limit our formulas to two dependent variables to limit the complexity of the models later. There are promising reasons for each variable but it would be worth checking the data plots.
+
 ```{r checking out dependent variable, echo = F}
-#total_county_verified_content_loan
-p1 <- ggplot(sba_merged_final, mapping = aes(x = log(total_county_verified_content_loan))) +
-  geom_histogram(binwidth = 0.35) +
-  my_theme +
-  labs(x = "total verified loss")
-
-#avg_county_verified_content_loan
-p2 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_verified_content_loan))) +
-  geom_histogram(binwidth = 0.35) +
-  my_theme +
-  labs(x = "avg. content loan")
-
 #total_county_approved_content_loan
-p3 <- ggplot(sba_merged_final, mapping = aes(x = log(total_county_approved_content_loan))) +
+p1 <- ggplot(sba_merged_final, mapping = aes(x = log(total_county_approved_content_loan))) +
   geom_histogram() +
   my_theme +
   labs(x = "total content loan")
 
 #avg_county_approved_content_loan
-p4 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_approved_content_loan))) +
+p2 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_approved_content_loan))) +
   geom_histogram(binwidth = 0.35) +
   my_theme +
   labs(x = "avg. content loan")
 
-
 #total_county_eidl_loan
-p5 <- ggplot(sba_merged_final, mapping = aes(x = log(total_county_eidl_loan))) +
+p3 <- ggplot(sba_merged_final, mapping = aes(x = log(total_county_eidl_loan))) +
   geom_histogram(binwidth = 0.35) +
   my_theme +
   labs(x = "total EIDL loan")
 
-
 #avg_county_eidl_loan
-p6 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_eidl_loan))) +
+p4 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_eidl_loan))) +
   geom_histogram(binwidth = 0.35) +
   my_theme +
   labs(x = "avg. EIDL loan")
@@ -421,8 +425,19 @@ p6 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_eidl_loan))) +
 ```
 
 ```{r dependent grid, warning = F}
-grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 2)
+grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
+
+Again as the plots indicate, the averages might prove to be a better predictor than our totals given the distribution. While we will not use a `log()` on the dependent it's clear the distributions are cleaner.
+
+As a result - we are choosing to go with EIDL loans. This is for a couple reasons. 
+1) We believe the EIDL loan mandates are more consistent with the requirements for the Paycheck Protection Program in that firms need to apply for [specific economic injury](https://www.sba.gov/funding-programs/loans/coronavirus-relief-options/economic-injury-disaster-loan-emergency-advance) related to the disaster. Similarily PPP is economic injury as opposed to physical damage. 
+
+There is a downside for choosing EIDL loans over content. Specifically, we will likely be underestimating the total amount due to the stringency of the program compared to PPP. In the current circunstances, the SBA has loosened firm eligibility making it easier for firms to get lending and larger loans. This will be a potential liability in our model
+
+**Exploration of Predictor Variables**
+
+We also wanted to quickly check on the distribution of the predictor variables and whether or not there is a need to create pre-processing methods for our model fitting.
 
 ```{r checking out independent variables, echo = F}
 #number of employees:
@@ -460,34 +475,63 @@ p12 <- ggplot(sba_merged_final, mapping = aes(x = MBay_effect)) +
 grid.arrange(p7, p8, p9, p10, p11, p12, nrow = 2)
 ```
 
-## Model specifications
+All the plots created above included `log()` transformations. It is clear we will need additional preprocessing steps to also include this transformation. 
+
+## Model specifications:
 
 **Algorithm Considerations: **
 
 We think it would be good to have a couple options to help see which might help the model fit better. Specifically:
 
-- Random Forests
-- Classic CART option
-- Linear Regression 
+- CART Decision Tree: We believe this will likely be our best algorithm for the complexity of the models we are using. We also think it provides the best ease of understanding for our audience. While there are many versions of tree-based algorithms, we think the [Classification and Regression Tree (CART)](https://bradleyboehmke.github.io/HOML/DT.html), makes the most sense since many of our variables are numeric and discreate. Since we are also using total and averaged loan sizes across county, the basic function of how trees create subgroups via an averaged response should make the algorithm more accurate for our dataset. 
 
-We have some missing data and need to fill them in with machine learning model: 
+- Linear Regression: We also felt it was important to include a baseline algorithm like linear regression. First, it's easy to understand when explaining our findings. That said, there are likely downsides to this model. It is likely our data is not linear in any form. Moroever, we would likely need to incldue further dummy variables to account for the non-linearity. Nonetheless, we think it's important to include if for no other reason than an easily-explainable baseline.
 
-```{checking on missing values}
-table(is.na(sba_merged_final$total_county_eidl_loan))
-table(is.na(sba_merged_final$avg_county_eidl_loan))
-```
+- Random Forests: We also wanted to explore a more robust version of decision trees, with a random forest algorithm. We understand this algorithym should be [easy to use out-of-the-box](https://bradleyboehmke.github.io/HOML/random-forest.html), but we need to further understand some of our missing values and their releationship to the data since the algorithm won't work with missing values.
 
-We have a couple diffeferent potential model formulas:
+**Testing Two Models**
+
+After exploring the data further we have a two diffeferent potential model formulas to test:
 
 - Average County EIDL Loan as a function of: average county verified content loan, employees, annual payroll, total recepits, payroll in the first quarter, number of establishments in its jursdiction, cases of COVID-19, and deaths from COVID-19. We are assuming that this will be a top 1% disaster, triggering the Michael Bay effect. [avg_county_eidl_loan ~ avg_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect]
 
 - Total County EIDL Loan as a function of: total county verified content loan, employees, annual payroll, total recepits, payroll in the first quarter, number of establishments in its jursdiction, cases of COVID-19, and deaths from COVID-19. We are assuming that this will be a top 1% disaster, triggering the Michael Bay effect. [total_county_eidl_loan ~ total_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect]
 
-```{r pre-process for CART and linear}
+**Missing Values**
+
+As mentioned earlier, it is important to consider the missing values in our data set. This is important since the random forest algorithm will require it but also how NAs will imapct on our other models. We will quickly subset our data to the variables of interest and create a sample of 50,000 observations so running tests is managable. 
+
+```{r checking on missing values}
+#to get a subset for missing visualizations
+sba_merged_model <- sba_merged_final %>%
+  select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, 
+         payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
+  sample_n(50000) 
+```
+
+```{r visualizing missing data across variables}
+vis_miss(sba_merged_model) #to see NAs across the variable spectrum
+```
+
+It looks like we only have significant missing values in our first quarter payroll as well as in our covid cases and covid deaths.
+
+```{r visualizing relationship between missing values}
+gg_miss_upset(sba_merged_model) #checking about relationship between the variables
+```
+
+As the earlier graph indicated a lot of the data's missing values are within the covid-related data and the payroll for the first quarter. While there is some relationship across the missing values we feel confident it isn't going to grealy impact the estimations of the models nor remove incredibly useful information from our estimations. 
+
+### Pre-Processing: 
+
+- formatting dependent variables:
+  * As mentioend earlier most of our dependent variable will be transformed with a `step_log()` command. these include our number of employees, annual payroll, number of estabilishment, payroll for the first quarter, and the firms revenue and sales. COVID cases and deaths as well as our Michael Bay factor will not be transormed. We have also included a command to offset the values due numerous observations in all variables equal to zero.
+  
+```{r pre-process for models}
 #pre-process for CART and linear:
 sba_merged_model <- sba_merged_final %>%
- select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
-  sample_n(50000) 
+ select(avg_county_eidl_loan, total_county_eidl_loan, avg_county_approved_content_loan, total_county_approved_content_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
+  na.omit(sba_merged_model) %>% #omitting missing values
+  sample_n(50000) #subsetting the dataset for training and testing
 
 set.seed(seed = 20200428)
 
@@ -498,11 +542,20 @@ SBA_resamples <- vfold_cv(data = SBA_train,
                           v = 10)
 ```
 
-When comparing models, we elected to use root mean squared error (RMSE) to estimate model error. RMSE was chosen because of its flexibility for both CART and linear regression. RMSE also weighs outliers less heavily, and since this economic criss will likely have many outliers we did not want a model that ignored them too heavily.
+### Error Term:
+
+When comparing models, we elected to use Root Mean Squared Error (RMSE) to estimate model error. RMSE was chosen because of its flexibility for both CART and linear regression. RMSE also weighs outliers more heavily, and since this economic criss is, by defintion, an outlier - we think it is important to base our model's estimations that incorporate outlier observations.
+
+### Testing Models in Resampling for CART and Linear algorithms:
+
+We will be testing four specific models for each of the two formulas and each of the two algorithms such that we will have:
+- Averaged CART
+- Total CART
+- Averaged Linear
+- Total Linear 
 
 ```{r linear and CART regression algorithm, warning = F}
-#Compare RMSE:
-
+#Comparing RMSE across our two formulas and two algorithms:
 SBA_resamples <- SBA_resamples %>%
   mutate(
     rmse_CARTavg = map_dbl(.x = splits,
@@ -525,28 +578,35 @@ SBA_resamples <- SBA_resamples %>%
                                               formula = total_county_eidl_loan ~ total_county_verified_content_loan + 
                                                 emp + payann + rcptot + payqrt1 + estab + covid_cases + 
                                                 covid_deaths + MBay_effect)))
-    
-  
+```
+
+We will first want to look across the ten folds:
+```{r across resamples}
 SBA_resamples %>%
   select(id, rmse_CARTavg, rmse_linearavg, rmse_CARTtotal, rmse_lineartotal)
+```
 
+As well as look at the mean of the resamples:
+```{r mean of resamples}
 SBA_resamples %>%
   summarize(mean(rmse_linearavg),
             mean(rmse_CARTavg),
             mean(rmse_CARTtotal),
             mean(rmse_lineartotal))
-
 ```
-It's clear from this model that CART does a better job than linear regression. This tracks with our intuition: this is a complex model with many variables and is more naturally sutied to a decision tree model than a simple linear model. Taking this logic one step further we attempted to run a random forests model to further reduce RMSE. 
+
+It's clear from this model that our **Averaged CART** does the best job among the four mdoel options. This tracks with our intuition: this is a complex model with many variables and is more naturally sutied to a decision tree model than a simple linear model. Taking this logic one step further we attempted to run a random forests model to further reduce RMSE. 
+
+**Random Forest Test**
 
 ``` {r setting seed and splitting into training and testing}
 #pre-process:
+set.seed(seed = 20200428)
+
 sba_merged_model_rf <- sba_merged_final %>%
  select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
   na.omit(sba_merged_model_rf) %>%
   sample_n(50000)
-
-set.seed(seed = 20200428)
 
 split_rf <- initial_split(sba_merged_model_rf, prop = 0.80)
 SBA_train_rf <- training(split_rf)
@@ -570,6 +630,7 @@ sba_rf_avg <- ranger(
 (avg_rmse <- sqrt(sba_rf_avg$prediction.error))
 ```
 
+We can see that across the training set, that our averaged random forest does better than most.
 
 ```{r RandomForest algorithm for total_county_eidl_loan}
 n_features1 <- length(setdiff(names(SBA_train_rf), "total_county_eidl_loan"))
@@ -588,14 +649,19 @@ sba_rf_total <- ranger(
 (total_rmse <- sqrt(sba_rf_total$prediction.error))
 ```
 
+It also appears that random forest for total does better compared to other totals across the training data.
 
-The random forests model decreased the RMSE and produced a better model than CART. However, due to computational limitations, we were not able to explore random forests further as part of this analysis.
+The random forests model decreased the RMSE and produced a better model than CART. However, due to our computational limitations, we were not able to explore random forests further as part of this analysis.
 
-Hence, we elected to go with average county EIDL loan via CART as our preferred model.
-
+Hence, we elected to go with average county EIDL loan via CART as our preferred final model for testing.
 
 ``` {r Final Model}
+#remove NA:
+SBA_train <- SBA_train %>%
+ select(avg_county_eidl_loan, total_county_eidl_loan, avg_county_approved_content_loan, total_county_approved_content_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
+  na.omit(SBA_train)
 
+#create recipe:
 final_recipe<- 
     recipe(formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
                                           emp + payann + rcptot + payqrt1 + estab + covid_cases + 
@@ -609,6 +675,7 @@ final_recipe<-
     step_log(estab, offset = 0.00001) %>% 
     prep()
 
+#create model:
 final_model <- decision_tree(mode = "regression") %>%
     set_engine("rpart") %>%
     fit(formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
@@ -616,6 +683,7 @@ final_model <- decision_tree(mode = "regression") %>%
                                           covid_deaths + MBay_effect, 
     data = SBA_train)
 
+#test model:
 final_rmse <- bind_cols(
   bake(final_recipe, new_data = SBA_test),
   pred = predict(final_model, bake(final_recipe, new_data = SBA_test)) 
@@ -628,10 +696,27 @@ final_rmse
 
 ```
 
-Since PPP has still a new program, data similar to the census and SBA data used here is not yet available on the size of these loans. Once that data is available, we can compare that against our model to see how effetive it would have been.
+As we can see from the final output there has been a slight uptick in the RMSE when running our model through our testing data. Our estimate becomes approximately $12,000 less accurate in predicting what EIDL loan sizes would be from natural disasters. We believe this isn't a terrible conclusion but believe there are areas of improvement, which we will discuss later.
 
-Having a model like this available to policymakers as they craft policy with as much as uncertainty as PPP would enable better policy outcomes and proper funding of programs, eliminating situtations similar to the one faced at the outset of this program.
+**Bias - Variance Tradeoff**
+We believe it is important to note at this point that our current model is likley of low-bias and high variance, which is probably an okay place to arrive given the algorithm of choice. Again, we will discuss areas of improvement later.
 
+## Applying Model to Current Crisis:
 
-How to calculate PPP loans: 
-https://www.sba.gov/sites/default/files/2020-04/How-to-Calculate-Loan-Amounts.pdf
+**Unfortunately Don't Have Current Data:**
+
+As of this writing, the SBA has yet to release data related to the PPP. Once that data is available, we can compare that against our model to see how effetive it would have been.
+
+**Still Upsides to the Model**
+
+Having a model like this available to policymakers as they craft policy with as much as uncertainty as PPP would enable better policy outcomes and proper funding of programs, eliminating situtations similar to the one faced at the outset of this program. Moreover, we believe the creation of the Michael Bay effect could help to engingeer a stronger prediction in future data, since we can in short tweak the variable to anticipate how much of an outlier the coronavirus pandemic has been. In short, we could try to predict what loan sizes would be had Harvey, Maria, or Sandy hit the entire country as opposed to specific states.
+
+## Areas of Improvement:
+
+We believe the first attempt at the model was sufficient but as noted there are areas where it can be great improved. First would be to consider a more aggegated variable for prediction. While EIDL were more aligned by need, as a loan, underestimate the need and account for a smaller portion of natural disaster funding. Content Loans could have perhaps proven a better fit and would be the first place to start given the Federal Reserve has indicated that [40% of 7(a) SBA disaster funding](https://www.fedsmallbusiness.org/survey/2018/report-on-disaster-affected-firms) is accounted by revenue loss and not physical property damage. 
+
+Moreover, there are likely errors in the data wrangling which could further account for less accurate data. With more time, accounting for those errors would make for a more accurate model. The same goes for handling missing information. Instead of ommitting the data, we could go back and imput the missing data with machine learning models, although that would require significant more time and thought. 
+
+Lastly, related to our attempt to balance or model's bias - variance trade off, we could further understand other algorithm options - like we tried with random forests - and further tune and dial the paremeters to understand the optimal arrangement for nodes, and subgroups in our decision tree models and other counfounding variables in our linear regression - we are sure we are missing some dummy variables that are important. It is important to note, that while we recognize the need for further balancing, given the implicit challenge at predicting current data on historical that balancing challenge will always exisit.
+
+Nonetheless, we feel proud of the work presented here and hope that the SBA will release PPP data soon, thus allowing us to really see how well our model performed.
