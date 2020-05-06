@@ -164,8 +164,10 @@ SBA disaster data includes several data variables of which EIDL or approved cont
 
 **Conversion of Jurisdictions** 
 
+
 A challenge relating to the creation of this dataset is that data from SBA are most granular at the zip code level. While we are thankful there is some inclusion of jurisdiction in the data, we had hoped it would be at the county level since our predictor variables come from the U.S. census and are only available at that level. The challenge arises from this mismatch is that we need to include a further dataset to translate disaster loan amounts from zip code to county.
 
+ster
 ```{r reading in zipcode/FIPS conversion dataframe}
 #Now will wan to read in data for fips codes:
 ZIP_COUNTY_FIPS_2012_12 <- read_csv("data/ZIP-COUNTY-FIPS_2012-12.csv")
