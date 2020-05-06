@@ -21,7 +21,8 @@ library(tidyverse)
 library(tidymodels)
 library(httr)
 library(jsonlite)
-library(randomForest)
+library(ranger)
+library(h2o)
 library(gridExtra)
 source("R/header.true.R")
 source("R/sba_api_2012.R")
@@ -29,8 +30,11 @@ source("R/sba_api_2017.R")
 source("R/sba_api_2007.R")
 source("R/add_year.R")
 source("R/my_theme.R")
-source("R/SBA_CART.R")
-source("R/SBA_linear.R")
+source("R/model_CART_avg.R")
+source("R/model_linear_avg.R")
+source("R/model_CART_total.R")
+source("R/model_linear_total.R")
+source("R/sba_rf_avg.R")
 ```
 
 ##Project Overview:
@@ -134,7 +138,7 @@ which the specific amount approved by SBA for the content a business lost in the
 
 We are also adding in an additional indicator variable to demarcate unusually significant natural disasters - all of which are major hurricanes. We've specified the value one for damange caused by Hurricane Sandy (2012), Hurricane Maria (2017), and Hurricane Harvey (2017) - all of which cause unusally high amounts of damange. All other disasters will recieve a value equal to zero. It is our hope that during the model training process we may be able to amplify the impact of a disaster, such that we can show what the cost might be were a major disaster such as Sandy, Maria, or Harvey to hit the entire country like the COVID virus has.
 
-```{r adding MBay_effect variable = 1}
+```{r adding MBay_effect}
 #adding column for major disaster variable from sandy
 sba_sandy <- sba_sandy %>%
   mutate(MBay_effect = 1)
@@ -144,23 +148,6 @@ x = c("FL", "TX", "PR", "VI")
 sba_2017 <- sba_2017 %>%
   mutate(
 MBay_effect = ifelse(sba_2017$`Damaged Property State Code`%in% x, 1 ,0))
-
-#adding column for major disaster variable:
-agg_disasters <- sba_merged_final %>%
-  group_by(`SBA Disaster Number`) %>%
-  summarise(sum(`Total Approved Loan Amount`)) %>%
-  drop_na()
-
-names(agg_disasters)[2] <- "Total_Loans"
-
-Baysian_Disasters <- agg_disasters %>%
-  filter(Total_Loans > quantile(Total_Loans, 0.99))
-
-#Adding variable for top 1% of disasters
-x = c("TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033")
-sba_2017 <- sba_2017 %>%
-  mutate(
-MBay_effect = ifelse(sba_2017$`SBA Disaster Number`%in% x, 1 ,0))
 ```
 
 ```{r adding in year variable}
@@ -371,13 +358,32 @@ sba_merged_final <- sba_merged_all %>%
   left_join(predictors, by = c("countyFIPS" = "countyFIPS",
                                "stateFIPS" = "stateFIPS"))
 
-#NOT SURE IF WE NEED TO DO THIS.
-#cleaning out the duplicates:
-  
-#sba_merged_final <- sba_merged_final %>%
-#  mutate(duplicate = duplicated(sba_merged_final$`Total Verified Loss`)) %>%
-#  filter(duplicate == !(TRUE)) %>%
-#  select(-duplicate)
+#rename some target variables:
+names(sba_merged_final)[1] <- "SBA_Disaster_Number" 
+names(sba_merged_final)[6] <- "Total_Verified_Loss"
+names(sba_merged_final)[7] <- "Verified_Loss_Content"
+names(sba_merged_final)[8] <- "Total_Approved_Loan_Amount"
+names(sba_merged_final)[9] <- "Approved_Amount_Content"
+names(sba_merged_final)[10] <- "Average_Amount_EIDL"
+```
+
+```{Mbay extra chunk}
+#adding column for major disaster variable:
+agg_disasters <- sba_merged_final %>%
+  group_by(`SBA Disaster Number`) %>%
+  summarise(sum(`Total Approved Loan Amount`)) %>%
+  drop_na()
+
+names(agg_disasters)[2] <- "Total_Loans"
+
+Baysian_Disasters <- agg_disasters %>%
+  filter(Total_Loans > quantile(Total_Loans, 0.99))
+
+#Adding variable for top 1% of disasters
+x = c("TX-00487", "FL-00130", "NY-00130", "PR-00031", "PR-00031", "	NJ-00033")
+sba_2017 <- sba_2017 %>%
+  mutate(
+MBay_effect = ifelse(sba_2017$`SBA Disaster Number`%in% x, 1 ,0))
 ```
 
 ```{r checking out correlation}
@@ -479,51 +485,11 @@ We think it would be good to have a couple options to help see which might help 
 - Classic CART option
 - Linear Regression 
 
-``` {r Imputing Missing data}
+We have some missing data and need to fill them in with machine learning model: 
 
-names(sba_merged_final)[1] <- "SBA_Disaster_Number" 
-names(sba_merged_final)[6] <- "Total_Verified_Loss"
-names(sba_merged_final)[7] <- "Verified_Loss_Content"
-names(sba_merged_final)[8] <- "Total_Approved_Loan_Amount"
-names(sba_merged_final)[9] <- "Approved_Amount_Content"
-names(sba_merged_final)[10] <- "Average_Amount_EIDL"
-  
-loan_missing <- sba_merged_final %>%
-  filter(is.na(`Approved_Amount_Content`))
-  
-loan_nonmissing <-sba_merged_final %>%
-  filter(!is.na(`Approved_Amount_Content`))
-  
-split <- initial_split(data = sba_merged_final, prop = 0.8)
-
-missing_train <- training(split)
-missing_test <- testing(split)
-
-model <-
-  decision_tree(mode = "regression") %>%
-  set_engine("rpart") %>%
-  fit(`Approved_Amount_Content` ~ `Verified_Loss_Content` + payann + emp + rcptot + covid_cases + covid_deaths,
-      data = missing_train)
-
-bind_cols(
-  missing_test,
-  predict(model, missing_test)
-) %>%
-  metrics(truth = `Approved_Amount_Content`,
-          estimate = .pred)
-
-loan_missing <- loan_missing %>%
-  select(-`Approved_Amount_Content`) %>%
-  bind_cols(
-    VAR = predict(model, loan_missing)
-  ) %>%
-  rename(price = .pred)
-
-SBA_merged_imputed <-
-  bind_rows(
-    loan_nonmissing,
-    loan_missing
-  )
+```{checking on missing values}
+table(is.na(sba_merged_final$total_county_eidl_loan))
+table(is.na(sba_merged_final$avg_county_eidl_loan))
 ```
 
 Model formulas:
@@ -532,14 +498,32 @@ Model formulas:
 
 - total_county_eidl_loan ~ total_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect
 
-- avg_county_approved_content_loan ~ avg_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect
 
+``` {r setting seed and splitting into training and testing}
+#pre-process:
+sba_merged_model_rf <- SBA_merged_imputed %>%
+ select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
+  sample_n(50000)
 
-``` {r 3 Methods for Approved Content Loan Size }
+sba_merged_model_rf <- na.omit(sba_merged_model_rf)
+
+set.seed(seed = 20200428)
+
+split_rf <- initial_split(sba_merged_model_rf, prop = 0.80)
+SBA_train_rf <- training(split_rf)
+SBA_test_rf <- testing(split_rf)
+```
+
+```{r pre-process for CART and linear:}
+#pre-process for CART and linear:
 sba_merged_model <- SBA_merged_imputed %>%
-  select(Approved_Amount_Content, Verified_Loss_Content, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths)
+ select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) 
+
+sba_merged_model <- na.omit(sba_merged_model) %>%
+  sample_n(50000) 
 
 set.seed(seed = 20200428)
+
 split <- initial_split(sba_merged_model, prop = 0.80)
 SBA_train <- training(split)
 SBA_test <- testing(split)
@@ -547,82 +531,37 @@ SBA_resamples <- vfold_cv(data = SBA_train,
                           v = 10)
 ```
 
-```{r RandomForest algorithm}
-#https://www.r-bloggers.com/how-to-implement-random-forests-in-r/
+```{r linear and CART regression algorithm, warning = F}
+#Compare RMSE:
 
-#SBA_RF <- randomForest(`Approved_Amount_Content` ~ ., data = SBA_merged_imputed, importance = TRUE)
-
-#CART
-model_CART <- function(split, formula, ...) {
-
-  analysis_data <- analysis(split)
-
-  model <-
-    decision_tree(mode = "regression") %>%
-    set_engine("rpart") %>%
-    fit(formula, data = analysis_data)
-
-  assessment_data <- assessment(split)
-    
-  rmse <- bind_cols(
-    assessment_data,
-    predict(model, assessment_data)
-    ) %>%
-    rmse(truth = Approved_Amount_Content, estimate = .pred) %>%
-    pull(.estimate)
-
-  return(rmse)
-}
-
-
-#linear
-
-model_linear <- function(split, formula, ...) {
-
-  analysis_data <- analysis(split)
-  assessment_data <- assessment(split)
-  model <-
-    linear_reg() %>%
-    set_engine("lm") %>%
-    fit(formula,
-        data = analysis_data)
-
-  rmse <- bind_cols(
-    assessment_data,
-    predict(model, assessment_data)
-  ) %>%
-    rmse(truth = Approved_Amount_Content, estimate = .pred) %>%
-    pull(.estimate)
-  
-  return(rmse)
-
-}
-
-#Compare RMSE
-
-SBA_resamples %>%
+SBA_resamples <- SBA_resamples %>%
   mutate(
-    rmse_CART1 = map_dbl(splits,
-                        .f = ~model_CART(.x,
-                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + estab + rcptot + MBay_effect)),
-    rmse_linear1 = map_dbl(.x = splits,
-                        .f = ~model_linear(.x,
-                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + estab + rcptot + MBay_effect)),
-  rmse_CART2 = map_dbl(splits,
-                        .f = ~model_CART(.x,
-                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + estab + rcptot + covid_deaths + MBay_effect)),
-    rmse_linear2 = map_dbl(.x = splits,
-                        .f = ~model_linear(.x,
-                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + estab + rcptot + covid_deaths + MBay_effect)),
-  rmse_CART3 = map_dbl(splits,
-                        .f = ~model_CART(.x,
-                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + MBay_effect)),
-    rmse_linear3 = map_dbl(.x = splits,
-                        .f = ~model_linear(.x,
-                                        formula = Approved_Amount_Content ~ `Verified_Loss_Content` + emp + MBay_effect))) %>%
-      select(id, rmse_CART1, rmse_linear1, rmse_CART2, rmse_linear2, rmse_CART3, rmse_linear3)
-                        
+    rmse_CARTavg = map_dbl(.x = splits,
+                         .f = ~model_CART_avg(split = .x,
+                                        formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
+                                          emp + payann + rcptot + payqrt1 + estab + covid_cases + 
+                                          covid_deaths + MBay_effect)),
+    rmse_linearavg = map_dbl(.x = splits,
+                           .f = ~model_linear_avg(.x,
+                                        formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
+                                          emp + payann + rcptot + payqrt1 + estab + covid_cases + 
+                                          covid_deaths + MBay_effect)),
+    rmse_CARTtotal = map_dbl(.x = splits,
+                         .f = ~model_CART_total(split = .x,
+                                          formula = total_county_eidl_loan ~ total_county_verified_content_loan + 
+                                            emp + payann + rcptot + payqrt1 + estab + covid_cases + 
+                                            covid_deaths + MBay_effect)),
+    rmse_lineartotal = map_dbl(.x = splits,
+                           .f = ~model_linear_total(.x,
+                                              formula = total_county_eidl_loan ~ total_county_verified_content_loan + 
+                                                emp + payann + rcptot + payqrt1 + estab + covid_cases + 
+                                                covid_deaths + MBay_effect)))
+    
+  
 SBA_resamples %>%
+  select(id, rmse_CART1, rmse_linear1, rmse_CART2, rmse_linear2)
+                        
+SBA_resamples1 %>%
   pivot_longer(-id) %>%
   ggplot(aes(x = id, 
              y = value,
@@ -634,111 +573,41 @@ SBA_resamples %>%
 
 SBA_resamples %>%
   summarize(mean(rmse_linear1),
-            mean(rmse_CART1))
+            mean(rmse_CART1),
+            mean(rmse_CART2),
+            mean(rmse_linear2))
 
 ```
 
+```{r RandomForest algorithm for avg_county_eidl_loan}
+n_features <- length(setdiff(names(SBA_train_rf), "avg_county_eidl_loan"))
 
-``` {r 3 Methods for Approved Content Loan Size }
-sba_merged_model <- sba_merged_final %>%
-  select(Approved_Amount_Content, Verified_Loss_Content, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths, total_county_approved_content_loan, Total_Verified_Loss)
+sba_rf <- ranger(
+  formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
+                                          emp + payann + rcptot + payqrt1 + estab + covid_cases + 
+                                          covid_deaths + MBay_effect,
+  data = SBA_train_rf,
+  mtry = floor(n_features / 3),
+  respect.unordered.factors = "order",
+  seed = 20200428
+)
 
-set.seed(seed = 20200428)
-split <- initial_split(sba_merged_model, prop = 0.80)
-SBA_train <- training(split)
-SBA_test <- testing(split)
-SBA_resamples <- vfold_cv(data = SBA_train,
-                          v = 10)
+(default_rmse <- sqrt(sba_rf$prediction.error))
+```
 
+```{r RandomForest algorithm for total_county_eidl_loan}
+n_features <- length(setdiff(names(SBA_train_rf), "total_county_eidl_loan"))
 
-#https://www.r-bloggers.com/how-to-implement-random-forests-in-r/
+sba_rf <- ranger(
+  formula = total_county_eidl_loan ~ total_county_verified_content_loan + 
+                                          emp + payann + rcptot + payqrt1 + estab + covid_cases + 
+                                          covid_deaths + MBay_effect,
+  data = SBA_train_rf,
+  mtry = floor(n_features / 3),
+  respect.unordered.factors = "order",
+  seed = 20200428
+)
 
-SBA_RF <- randomForest(`Approved_Amount_Content` ~ ., data = na.exclude(sba_merged_model), importance = TRUE)
-
-#CART
-
-model_CART <- function(split, formula, ...) {
-
-  analysis_data <- analysis(split)
-
-  model <-
-    decision_tree(mode = "regression") %>%
-    set_engine("rpart") %>%
-    fit(formula, data = analysis_data)
-
-  assessment_data <- assessment(split)
-    
-  rmse <- bind_cols(
-    assessment_data,
-    predict(model, assessment_data)
-    ) %>%
-    rmse(truth = total_county_approved_content_loan, estimate = .pred) %>%
-    pull(.estimate)
-
-  return(rmse)
-}
-
-
-#linear
-
-model_linear <- function(split, formula, ...) {
-
-  analysis_data <- analysis(split)
-  assessment_data <- assessment(split)
-  model <-
-    linear_reg() %>%
-    set_engine("lm") %>%
-    fit(formula,
-        data = analysis_data)
-
-  rmse <- bind_cols(
-    assessment_data,
-    predict(model, assessment_data)
-  ) %>%
-    rmse(truth = total_county_approved_content_loan, estimate = .pred) %>%
-    pull(.estimate)
-  
-  return(rmse)
-
-}
-
-#Compare RMSE
-
-SBA_resamples %>%
-  mutate(
-    rmse_CART1 = map_dbl(splits,
-                        .f = ~model_CART(.x,
-                                        formula = total_county_approved_content_loan ~ Total_Verified_Loss + emp + estab + rcptot + MBay_effect)),
-    rmse_linear1 = map_dbl(.x = splits,
-                        .f = ~model_linear(.x,
-                                        formula = total_county_approved_content_loan ~ Total_Verified_Loss + emp + estab + rcptot + MBay_effect)),
-  rmse_CART2 = map_dbl(splits,
-                        .f = ~model_CART(.x,
-                                        formula = total_county_approved_content_loan ~ Total_Verified_Loss + emp + estab + rcptot + covid_deaths + MBay_effect)),
-    rmse_linear2 = map_dbl(.x = splits,
-                        .f = ~model_linear(.x,
-                                        formula = total_county_approved_content_loan ~ Total_Verified_Loss + emp + estab + rcptot + covid_deaths + MBay_effect)),
-  rmse_CART3 = map_dbl(splits,
-                        .f = ~model_CART(.x,
-                                        formula = Approved_Amount_Content ~ Total_Verified_Loss + emp + MBay_effect)),
-    rmse_linear3 = map_dbl(.x = splits,
-                        .f = ~model_linear(.x,
-                                        formula = Approved_Amount_Content ~ Total_Verified_Loss + emp + MBay_effect))) %>%
-      select(id, rmse_CART1, rmse_linear1, rmse_CART2, rmse_linear2, rmse_CART3, rmse_linear3)
-                        
-SBA_resamples %>%
-  pivot_longer(-id) %>%
-  ggplot(aes(x = id, 
-             y = value,
-             color = name,
-             group = name)) +
-    geom_point() +
-  geom_line() +
-  scale_y_continuous(limits = c(0, NA))
-
-SBA_resamples %>%
-  summarize(mean(rmse_linear1),
-            mean(rmse_CART1))
-
+(default_rmse <- sqrt(sba_rf$prediction.error))
 ```
 
