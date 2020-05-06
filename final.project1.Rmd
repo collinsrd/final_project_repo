@@ -36,7 +36,7 @@ source("R/model_CART_total.R")
 source("R/model_linear_total.R")
 ```
 
-##Project Overview:
+## Project Overview:
 
 With the coronavirus pandemic having upended life as we know it, many government from around the world have instituted massive lockdowns on economic activity to slow the spread of the virus and protect vulnerable segments of the populaiton. Unfortunately, these measures also carry a significant economic costs. In the United States alone, they have resulting in #TKTKT jobs losses, a full scale retreat from consumption and put many industries and businesses in serious threat of bankrupcy and insolvency. As a result, the federal government through several rounds of legislative action have tried to stem the economic losses through several programs. One - the Paycheck Protection Program (PPP) - administered by the Small Business Administration (SBA) was intented to provide businesses under 500 employees the wherewithal to withstand the immediate economic downturn with minimual loss. The original funding stipulated was $250 billion dollars.
 
@@ -52,7 +52,7 @@ While the COVID-19 pandemic is a classic black swan event in relation to other h
 
 The data we will be using for this project come from multiple sources but our primary interest is in the historical SBA disaster loan data available from SBA, which cataloges the specific loss and approved loan amounts to areas impacted by natural disasters between the years of 2008 and 2018. All relevant data can be found and downloaded [here](https://www.sba.gov/about-sba/sba-performance/open-government/digital-sba/open-data/open-data-sources). 
 
-```{r reading in SBA disaster data, echo = F}
+```{r reading in SBA disaster data, echo = F, warning = F}
 #first for the disaster loan-size:
 sba_sandy <- read_excel("data/SBA_Disaster_Loan_Data_Superstorm_Sandy_simple.xlsx", 
                         col_types = c("numeric", "numeric", "numeric",
@@ -563,9 +563,9 @@ clear that the averages with CART do better. I'd bet that random forests would d
 
 ``` {r setting seed and splitting into training and testing}
 #pre-process:
-sba_merged_model_rf <- SBA_merged_final %>%
+sba_merged_model_rf <- sba_merged_final %>%
  select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
-  sba_merged_model_rf <- na.omit(sba_merged_model_rf)
+  na.omit(sba_merged_model_rf) %>%
   sample_n(50000)
 
 set.seed(seed = 20200428)
