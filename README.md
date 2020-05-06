@@ -30,4 +30,4 @@ This page also includes a more thorough explanation of the model and the paramet
 ## PPP Resources
 * [SBA PPP Homepage](https://www.sba.gov/funding-programs/loans/coronavirus-relief-options/paycheck-protection-program) 
 * [US Treasury CARES Act Explainer](https://home.treasury.gov/policy-issues/cares/assistance-for-small-businesses)
-
+* [US Senate Committee on Small Business and Entrepreneurship](https://www.sbc.senate.gov/public/index.cfm/paycheck-protection-program)
