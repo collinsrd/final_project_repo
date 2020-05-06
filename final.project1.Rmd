@@ -40,19 +40,20 @@ source("R/model_linear_total.R")
 
 ## Project Overview:
 
-With the coronavirus pandemic having upended life as we know it, many government from around the world have instituted massive lockdowns on economic activity to slow the spread of the virus and protect vulnerable segments of the populaiton. Unfortunately, these measures also carry a significant economic costs. In the United States alone, they have resulting in #TKTKT jobs losses, a full scale retreat from consumption and put many industries and businesses in serious threat of bankruptcy and insolvency. As a result, the federal government through several rounds of legislative action have tried to stem the economic losses through several programs. One - the Paycheck Protection Program (PPP) - administered by the Small Business Administration (SBA) was intented to provide businesses under 500 employees the wherewithal to withstand the immediate economic downturn with minimual loss. The original funding stipulated was $250 billion dollars.
+With the coronavirus pandemic having upended life as we know it, many governments from around the world have instituted massive lockdowns on economic activity to slow the spread of the virus and protect vulnerable segments of the population. Unfortunately, these measures also carry a significant economic cost. In the United States alone, they have resulted in [26 million jobs losses](https://www.npr.org/sections/coronavirus-live-updates/2020/04/23/841876464/26-million-jobs-lost-in-just-5-weeks) since March and umemployment rates predicted at almost 20%. This has forced many households into a full-scale retreat from consumption and put many industries and businesses in serious threat of [bankruptcy and insolvency](https://www.nytimes.com/2020/05/03/business/j-crew-bankruptcy-coronavirus.html). As a result, the federal government through several rounds of legislative action have tried to stem the economic losses through several lending programs. One - the [Paycheck Protection Program (PPP)](https://www.sba.gov/funding-programs/loans/coronavirus-relief-options/paycheck-protection-program) - administered by the Small Business Administration (SBA) was intended to provide businesses under 500 employees the wherewithal to withstand the immediate economic downturn with minimal loss. The original funding stipulated was [$250 billion dollars](https://www.congress.gov/bill/116th-congress/senate-bill/3548/text?q=product+update).
 
-Within the first two weeks of the program demand was overwhelming. So much so, that funding for businesses through the program ran out within a matter of weeks and forced congress to authorize an additional $310 billion dollars for the program. While the program has had challenges with scaling, acces and eligiblity it has been somewhat of a success in providing businesses with a lifeline during this downturn. Moreover, as an intended policy, the program was designed to only provide funding to small buisnesses who retained the same level of payroll - stipulating that at minimum, 75% of funds must be used to provide payroll relief and to retain employees. As such, one primary goal was to keep people employed throughout the downturn such that when government-sanctioned lockdowns lifted, those workers would be able to return to a secure job instead of find themselves in line for additional unemployment benefitis. Whether or not this will be the result, it is likely too early to tell. 
+Within the first two weeks of the program [demand was overwhelming](https://www.rollcall.com/2020/04/09/congress-works-on-sba-aid-bill-amid-overwhelming-demand/). So much so, that funding for businesses ran out within a matter of weeks and forced congress to authorize an additional $310 billion dollars for the program. While the program has [faced challenges](https://www.npr.org/2020/05/04/848389343/how-did-the-small-business-loan-program-have-so-many-problems-in-just-4-weeks) with scaling, access and eligibility it has helped provide businesses with a lifeline during this downturn. Moreover, as an intended policy, the program was designed to only provide funding to small businesses who retained the [same level of payroll](https://crsreports.congress.gov/product/pdf/IN/IN11329) - stipulating that at minimum, 75% of funds must be used to provide payroll relief and to retain employees. As such, one primary goal was to keep people employed throughout the downturn such that when government-sanctioned lockdowns lifted, those workers would be able to return to a secure job instead of finding themselves in line for additional unemployment benefits. Whether or not this will be the result, it is too early to tell. 
 
-There is one thing for certain - that the program experienced massive demand - such that funds were overwhelmed and institutions were forced to serve those who came first. This has led to the unnecessary prioritization of certain businesses over others when the object of the policy was to make this a guarentee for any business that might need it as a means to retain the same level of employment as they held prior to the pandemnic. Which raises the question - why didn't congress allocate what is likely a quarter of what is needed? 
+There is one thing for certain - that the program experienced massive demand - such that banks were overwhelmed, and institutions were forced [to serve those who came first](https://www.chicagotribune.com/coronavirus/ct-nw-nyt-banks-special-treatment-ppp-loans-20200423-pn56tsaz6fhrhg7xppvokphmiq-story.html). This has led to the unnecessary prioritization of certain businesses over others when the object of the policy was to make this a guarantee for any business that might need it as a means to retain the same level of employment as they held prior to the pandemic. Which raises the question - why didn't congress allocate what is likely a quarter of what is needed? 
 
-While the COVID-19 pandemic is a classic black swan event in relation to other historic disaster events, SBA and federal agencies could perhaps have been better prepared to predict the specific demand needed for the program. It is the goal of this project to predict what was the average loan amount for the Paycheck Protection Program based upon previous disaster loan approvals. While this is not an apples to apples comparison, the hope is that we find a generally useful guide for loan pracitioners and understand just how much of an outlier this crisis has and continues to be.
+While the COVID-19 pandemic is a classic black swan event in relation to other historic disaster events, SBA and federal agencies could perhaps have been better prepared to predict the specific demand needed for the program. It is the goal of this project to predict what was the average loan amount for the Paycheck Protection Program should be based upon previous disaster loan approvals. While this is not an apples to apples comparison, the hope is that we find a generally useful future guide for loan practitioners and understand just how much of an outlier this crisis has and continues to be.
 
 ## Data for consideration:
 
 ### Dependent Variable:
 
-The data we will be using for this project come from multiple sources but our primary interest is in the historical SBA disaster loan data available from SBA, which cataloges the specific loss and approved loan amounts to areas impacted by natural disasters between the years of 2008 and 2018. All relevant data can be found and downloaded [here](https://www.sba.gov/about-sba/sba-performance/open-government/digital-sba/open-data/open-data-sources). 
+The data we will be using for this project come from multiple sources, but our primary interest is in the historical SBA disaster loan data available from SBA, which catalogs the specific loss and approved loan amounts to areas impacted by natural disasters between the years of 2008 and 2018. All relevant data can be found and downloaded [here](https://www.sba.gov/about-sba/sba-performance/open-government/digital-sba/open-data/open-data-sources).
+
 
 ```{r reading in SBA disaster data, echo = F, warning = F}
 #first for the disaster loan-size:
@@ -130,9 +131,8 @@ sba_2018 <- read_excel("data/SBA_Disaster_Loan_Data_FY18_simple.xlsx",
                                      "numeric"))
 ```
 
-
-```{r adding in year variable}
-#adding year variable:
+```{r adding in year variable, echo = F}
+#adding year variable for weighted computation laterr:
 years <- c(2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018)
 
 sba_2008 <- add_year(sba_2008, 1)
@@ -158,13 +158,13 @@ sba_merged_all <- sba_merged_all %>%
   rename(zipcode = `Damaged Property Zip Code`)
 ```
 
-For our dependent variable, we are looking at the specific "Approved Content Loan Amount," available within the SBA data. SBA disaster dataset includes several data sources of which approved content, we believe, to be the most comparable. Specifically, the data include verified losse and approved amounts. The losses and amounts are separated into "total", "real estate", and "content." We believe that content amount and content loss are important variables because the account for the total loss/approved amount related to the non-physical property related damages including inventory, equipment and other goods/services related loss. 
+For our dependent variable, we are looking at either the specific "Approved Content Loan Amount," or the "EIDL loans" available within the SBA data. 
 
-which the specific amount approved by SBA for the content a business lost in the disaster. We believe this is a useful proxy for PPP loan amounts provided they are only eligble to be used for payroll and some fixed costs. We are also looking at the SBA's Economic Injury Disaster Loan amounts as they are more comparable to the current circunstances businesses are facing with COVID.
+SBA disaster data includes several data variables of which EIDL or approved content, we believe, to be the most comparable to the current circunstances. Generally, the data include verified losses and approved loan amounts. The loss and loan amounts are separated into "total", "real estate", and "content." We believe that the content amount and content loss are important variables because the account for the total loss/approved amount related to non-physical property related damages including inventory, equipment and other goods/services related losses. Additionally, EIDL loans are specifically geard to cover economic loss that is not phsicial in nature. As such, we believe these to be useful proxies for current PPP loan amounts.
 
 **Conversion of Jurisdictions** 
 
-A challenge relating to the imputation of the data from SBA has been that the data is at it's most granular at the zipcode level. While we are thankful there is some inclusion of jursidiction in the data, we had hoped it would be at the county level since our predictor varaibles come from the U.S. census and are only available at that level. The challenge arises such that we need to include a further dataset to translate disaster loan amounts from zipcode to county.
+A challenge relating to the creation of this dataset is that data from SBA are most granular at the zip code level. While we are thankful there is some inclusion of jurisdiction in the data, we had hoped it would be at the county level since our predictor variables come from the U.S. census and are only available at that level. The challenge arises from this mismatch is that we need to include a further dataset to translate disaster loan amounts from zip code to county.
 
 ```{r reading in zipcode/FIPS conversion dataframe}
 #Now will wan to read in data for fips codes:
@@ -187,11 +187,13 @@ sba_merged_all <- sba_merged_all %>%
          countyFIPS = substr(STCOUNTYFP, 3, 5))
 ```
 
-Moreover, as anyone who's crossed this path recognizes that zipcodes change from time to time and that they are not uniform within counties - in some instances crossing boundry lines. As such, we've created severalw weighted county-total and county-averages for variables:
+Moreover, as anyone who's crossed this path recognizes, zip codes change from time to time and they are not uniform within counties - in that - some zip codes cross county boundary lines. As such, we will need to create several weighted county-total and county-averages for our SBA loan amount variables.
 
-  - total verified content loss
-  - total content approved
-  - total EIDL approved
+We've created averages and totals for three variables with the code below:
+
+  - verified content loss
+  - content loan approved
+  - EIDL loans approved
 
 ```{r creating weighted county variables}
 #creating weight for countys with multiple zipcodes:
@@ -220,7 +222,14 @@ sba_weighted <- sba_merged_all %>%
     )
 ```
 
-We weighted our variables by creating a count variable which indicated how many times a zipcode showed up by year in our merged sba_county dataset. We were then able to remerge that into our dataset and weighted our content loss, content loan, and EIDL loan by the count variable - thus splitting those amounts by the number of counties. For example that would indicate that a loan amount from a certain zipcode wholly contained in a county would not be impact, whereas a loan amount split between two counties would effectively be halfed between the two. We then took totals and averages by county and created separate variables. These will be the finalize dependent variable under consideration. 
+As mentioned, we weighted our variables by creating a count of how many times a zip code showed up by year and county. We were then weighted our content loss, content loan, and EIDL loan by the count variable - dividing by `n()` for totals and $1/n()$ for averages - thus splitting those loan amounts by the number of counties they show up in. That would indicate that a loan amount from a certain zip code wholly contained in a county would not be impacted, whereas a loan amount split between two counties would effectively be halved between the two. We then took totals and averages by county and created separate variables. 
+
+- total_county_approved_content_loan
+- avg_county_approved_content_loan
+- total_county_eidl_loan
+- avg_county_eidl_loan
+
+These will be the finalize dependent variable under consideration for our model.
 
 ```{r merging weighted variables onto SBA disaster loan data}
 #now merging them all onto sba_merged 
@@ -235,19 +244,38 @@ sba_merged_all <- sba_merged_all%>%
 
 ### Predictor Variables: 
 
-As mentioned earlier for our predictor variables originate from the [Economic Census](https://www.census.gov/data/developers/data-sets/economic-census.html) undertaken by the U.S. Census Bureau in five year increments (2007, 2012, 2017). According to the Census, the Economic Census is the official measure of the U.S.'s business and economy. As a survey it provides the statistical benchmark for economic activity and provides granular details on busienss size, employment numbers, sales and recipets as well as other important data. For our purposes, we are interested in number of employees, number of establishments, annual payroll, first-quarter payroll, and sales or revenue,
+As mentioned earlier for our predictor variables originate from the [Economic Census](https://www.census.gov/data/developers/data-sets/economic-census.html) undertaken by the U.S. Census Bureau in five year increments (2007, 2012, 2017). According to the Census, the Economic Census is the official measure of the U.S.'s business and economy. As a survey it provides the statistical benchmark for economic activity and provides granular details on business size, employment numbers, sales and revenue as well as other important data. For our purposes, we are interested in number of employees, number of establishments, annual payroll, first-quarter payroll, and sales or revenue,
 
 **Small Business Economic Census Data**
 
-- Number of Employees: As the U.S. Treasury explains the [PPP program](https://home.treasury.gov/system/files/136/PPP--Fact-Sheet.pdf) is eligible for firms with 500 employees or less - although there is numerous instances this [might not be the case](https://www.washingtonpost.com/business/2020/05/01/sba-ppp-public-companies/). While the implementation of the program has allowed for larger firms to take advange of the program, since the goal is to provide coverage for payroll, a larger number of employees would indicate the need for larger loan sizes.
+- Number of Employees: As the U.S. Treasury explains the [PPP program](https://home.treasury.gov/system/files/136/PPP--Fact-Sheet.pdf) is eligible for firms with 500 employees or less - although there is numerous instances this [might not be the case](https://www.washingtonpost.com/business/2020/05/01/sba-ppp-public-companies/). While the implementation of the program has allowed for larger firms to take advantage of the program, since the goal is to provide coverage for payroll, a larger number of employees would indicate the need for larger loan sizes.
 
-- Number of Establishments: The number of established firms in a jurisdiction influences since SBA loan performance measurea are largely [output-based](https://www.gao.gov/new.items/d08226t.pdf) as opposed to impact. As such, most SBA loan officers will likely prioritize areas with more establishments as opposed to fewers. As such, this variable is important to include. This output verus impact driven eligibility [isn't limited to only](https://crsreports.congress.gov/product/pdf/R/R43661) SBA loans.
+- Number of Establishments: The number of established firms in a jurisdiction influences the loan size since SBA loan performance measures are largely [output-based](https://www.gao.gov/new.items/d08226t.pdf) as opposed to outcome. As such, most SBA loan officers will likely prioritize areas with more establishments as opposed to fewer. As such, this variable is important to include. This output versus impact driven eligibility [isn't limited to only](https://crsreports.congress.gov/product/pdf/R/R43661) SBA loans.
 
-- Annual Payroll: As mentioned above, a large goal of the PPP is to provide coverage for small buisness payroll. As such, in applying for the PPP, borrowers [must submit their previous years' annual payroll](https://www.sba.com/funding-a-business/government-small-business-loans/ppp/loan-calculator/) for underwriting of the loan. As such it's one of the most critical variables to the model.
+- Annual Payroll: As mentioned above, a large goal of the PPP is to provide coverage for small business payroll. As such, in applying for the PPP, borrowers [must submit their previous years' annual payroll](https://www.sba.com/funding-a-business/government-small-business-loans/ppp/loan-calculator/) for underwriting of the loan. Therefore we think it's important variable to include.
 
-- First Quarter Payroll: Additionally, for SBA PPP loans, monthly payroll is taken into account, such that no loan can be more than [250% of monthly payroll](https://taxfoundation.org/sba-paycheck-protection-program-cares-act/). Providing the 1st quarter payroll related to disaster may provide some clarity on what those loans would have been influenced by. This could also help to take into account some seasonanility in payroll flows.
+- First Quarter Payroll: Additionally, for SBA PPP loans, monthly payroll is taken into account, such that no loan can be more than [250% of previous month's cost](https://taxfoundation.org/sba-paycheck-protection-program-cares-act/). Providing the 1st quarter payroll related to disaster may provide some clarity on what those loans would have been influenced by. This could also help to take into account some seasonality in payroll flows. That said, since we have annual payroll included already this is a less important variable to consider.
 
-- Sales or Revenue: This variable is important particularly for SBA content and EIDL loans where the firm needs to prove a certain amount of economic injury. [A survery](https://www.fedsmallbusiness.org/survey/2018/report-on-disaster-affected-firms) by the Federal Reserve board found that in disaster-related lending that forgone revenues (not assets) were the largest source of loss.
+- Sales or Revenue: This variable is important particularly for SBA content and EIDL loans where the firm needs to prove a certain amount of economic injury. [A survery](https://www.fedsmallbusiness.org/survey/2018/report-on-disaster-affected-firms) by the Federal Reserve board found that in disaster-related lending that forgone revenues (not assets) were the largest source of loss. Moreover, for PPP purposes, this is the calculation required for companies with no employees or independent contractors.
+
+**North American Industry Classification System (NAICS) Limitations**
+
+One of the challenges related to the census level data is the need to specify NAICS codes to avoid crashing our systems. As such, we created a function that specifies the NAICS codes for the top 10 industries who received PPP funding as of April 13th, 2020. Those industries are: 
+
+- 23: Construction 
+- 31-33: Manufacturing:
+- 42: Wholesale
+- 44-45: Retail Trade
+- 53: Real Estate Rental and Leasing
+- 54: Professional, Scientific and Technical Services
+- 56: Administrative and Support and Waste Management and Remediation Services
+- 62: Health Care and Social Assistance
+- 72: Accommodation and Food Services 
+- 81: Other Services (except Public Administration)
+
+While the rank of these industries is somewhat suspect when considering which industries are most likely to be [impacted by the crisis](https://www.brookings.edu/research/how-local-leaders-can-stave-off-a-small-business-collapse-from-covid-19/), they cover the majority of industries which would most likely to be impacted by the crisis.
+
+We should also note that for the 2017 survery Construction, Manufacturing, and Wholesale retail were not available.
 
 ```{r reading and merging in Economic Census data from Census API, warning = F}
 #2012 and 2007 include all the relevent NAICS data so will use for both dataframes
@@ -269,23 +297,8 @@ sba_census_2017 <- map_df(.x = NAICS2017,
 
 sba_census_merged <- bind_rows(sba_census_2007, sba_census_2012, sba_census_2017)
 ```
-
-**North American Industry Classification System (NAICS) Limitations**
-
-One of the challenges related to the census level data is the need to specifiy NAICS codes to avoid crashing our systems. As such, we created a function that specifies the NAICS codes for the top 10 industries who recieved PPP funding as of April 13th, 2020. Those industries are: 
-
-- 23: Consturction 
-- 31-33: Manufacturing:
-- 42: Whole Sale
-- 44-45:Rtail Trade
-- 53: Real Estate Rental and Leasing
-- 54: Professional, Scientific and Technical Services
-- 56: Administrative and Support and Waste Management and Remediation Services
-- 62: Health Care and Social Assistance
-- 72: Accomodation and Food Services 
-- 81: Other Services (expcept Public Administration)
-
-While the rank of these industries is somewhat suspect when considering which industries are most likely to be [impacted by the crisis](https://www.brookings.edu/research/how-local-leaders-can-stave-off-a-small-business-collapse-from-covid-19/), they cover the majority of what would be likely to be impacted by the crisis. 
+ 
+To refine the census data further, we include our targeted predictor variables from the census surveys taken in 2007, 2012, and 2017 and average them such that we create a 10-year average for each variable. We should note that there is no first quarter payroll included in 2007 data.
 
 ```{r cleaning SBA census data and averaging predictor variables}
 sba_census_merged <- sba_census_merged %>%
@@ -307,7 +320,7 @@ sba_census_merged <- sba_census_merged%>%
          stateFIPS = state)
 ```
 
-We include our targeted predictor variables from the census surveys taken in 2007, 2012, and 2017 and average them such that we recieve a 10-year average for each variable. We should note that there is no first quarter payroll included in 2007 data.
+To further tie the prediction to the COVID crisis we also include data provided by the New York Times on their public [GitHub page](https://github.com/nytimes/covid-19-data), which includes the count of COVID cases and deaths by county. We have to manipulate the data somewhat to total the data over time to get an accurate total per county, which we then merge with our census data.
 
 ```{r reading in COVID cases/deaths}
 #Adding in COVID cases/deaths 5.3.20:
@@ -323,9 +336,7 @@ covid <- covid %>%
             covid_cases = sum(cases))
 ```
 
-To further tie the prediction to the COVID crisis we also include data provided by the New York Times on their public [GitHub page](https://github.com/nytimes/covid-19-data), which includes the count of COVID cases and deaths by county. We have to manipulate the data somewhat to total the data over time to get an accurate total per county, which we then merge with our census data.
-
-```{r merging COVID and Census Data into single dataframe}
+```{r merging COVID and Census Data into single dataframe, echo = F}
 #merging onto sba_census data:
 predictors <- sba_census_merged %>%
   left_join(covid, by = c("stateFIPS", "countyFIPS"))
@@ -333,7 +344,7 @@ predictors <- sba_census_merged %>%
 
 **Michael Bay Effect**
 
-We are also adding in an additional indicator variable to demarcate unusually significant natural disasters, which we are delineating as the top 1% of disasters. This includes storms such as Hurricane Sandy (2012), Hurricane Maria (2017), and Hurricane Harvey (2017) - all of which cause unusally high amounts of damange. All other disasters will recieve a value equal to zero. It is our hope that during the model training process we may be able to amplify the impact of a disaster, such that we can show what the cost might be were a major disaster such as Sandy, Maria, or Harvey to hit the entire country like the COVID virus has.
+We are also adding in an additional indicator variable to demarcate unusually significant natural disasters, which we are delineating as the top 1% of disasters. This includes storms such as Hurricane Sandy (2012), Hurricane Maria (2017), and Hurricane Harvey (2017) - all of which cause unusually high amounts of damage. All other disasters will receive a value equal to zero. It is our hope that during the model training process we may be able to amplify the impact of a disaster, such that we can show what the cost might be were a major disaster such as Sandy, Maria, or Harvey to hit the entire country like the COVID virus has.
 
 ```{r Micheal Bay Effect Variable}
 #adding column for major disaster variable:
@@ -356,7 +367,7 @@ sba_merged_all <- sba_merged_all %>%
 MBay_effect = ifelse(sba_merged_all$`SBA Disaster Number`%in% x, 1 ,0))
 ```
 
-With all that done we are then able to merge our SBA disaster loan data with our combined COVID/Census data to create a final dataframe for machine learning analysis. 
+With all that done we are then able to merge our SBA disaster loan data with our combined COVID/Census data to create a final data frame for machine learning analysis.
 
 ```{r merging census and SBA disaster datasets into single dataframe}
 #merging county and disaster numbers:
@@ -367,11 +378,11 @@ sba_merged_final <- sba_merged_all %>%
 
 ### Exploring the Data Further:
 
-Now that there is a centralized dataset including SBA disaster loan totals and economic census data from counties we will test for the relationships between the variables to help configure the model formulas we plan to use during the machine learning training and testing later. To reiterate or key depedence variables for consideration are avg/total county EDIL loans and avg/total county content loan amounts. We would like to narrow these to either EIDL or county content to minimize the number of potential models for consideration. 
+Now that there is a centralized dataset including SBA disaster loan totals and economic census data from counties, we will test for the relationships between the variables to help configure the model formulas we plan to use during the machine learning training and testing later. To reiterate or key dependence variables for consideration are avg/total county EDIL loans and avg/total county content loan amounts. We would like to narrow these to either EIDL or county content to minimize the number of potential models for consideration. 
 
-First we want to check out the correlation between the variables:
+First, we want to check out the correlation between the variables:
 
-**Correlation Betweeen Variables**
+**Correlation Between Variables**
 
 ```{r checking out correlation, echo = F, warning = F}
 #Finding correlation
@@ -391,11 +402,11 @@ sba_corr <- sba_corr %>%
 sba_corr
 ```
 
-As we can see from the correlation output there are strong relationships with our predictor variables. At first blush it looks like our averaged depedents might have better connections than our totals. To
+As we can see from the correlation output there are strong relationships with our predictor variables. At first blush it looks like our averaged dependents might have better connections than our totals.
 
-**Choice Between county approved content loans and EIDL loans**
+**Choice Between county approved content loans and EIDL loans:**
 
-As mentioned earlier - we're looking to limit our formulas to two dependent variables to limit the complexity of the models later. There are promising reasons for each variable but it would be worth checking the data plots.
+As mentioned earlier - we're looking to limit our formulas to two dependent variables to limit the complexity of the models later. There are promising reasons for each variable, but it would be worth checking the data plots.
 
 ```{r checking out dependent variable, echo = F}
 #total_county_approved_content_loan
@@ -426,14 +437,23 @@ p4 <- ggplot(sba_merged_final, mapping = aes(x = log(avg_county_eidl_loan))) +
 
 ```{r dependent grid, warning = F}
 grid.arrange(p1, p2, p3, p4, nrow = 2)
+
+#TOP:
+#P1 = total_county_approved_content_loan
+#P2 = avg_county_approved_content_loan
+
+#BOTTOM:
+#P3 = total_county_eidl_loan
+#P4 = avg_county_eidl_loan
 ```
 
-Again as the plots indicate, the averages might prove to be a better predictor than our totals given the distribution. While we will not use a `log()` on the dependent it's clear the distributions are cleaner.
+All plots transformed with `log()`
 
-As a result - we are choosing to go with EIDL loans. This is for a couple reasons. 
-1) We believe the EIDL loan mandates are more consistent with the requirements for the Paycheck Protection Program in that firms need to apply for [specific economic injury](https://www.sba.gov/funding-programs/loans/coronavirus-relief-options/economic-injury-disaster-loan-emergency-advance) related to the disaster. Similarily PPP is economic injury as opposed to physical damage. 
+Again, as the plots indicate, the averages might prove to be a better predictor than our totals given the distribution. While we will not use a `log()` on the dependent it's clear the distributions are cleaner.
 
-There is a downside for choosing EIDL loans over content. Specifically, we will likely be underestimating the total amount due to the stringency of the program compared to PPP. In the current circunstances, the SBA has loosened firm eligibility making it easier for firms to get lending and larger loans. This will be a potential liability in our model
+As a result - we are choosing to go with EIDL loans. This is for a couple reasons. First, we believe the EIDL loan mandates are more consistent with the requirements for the Paycheck Protection Program in that firms need to apply for [specific economic injury](https://www.sba.gov/funding-programs/loans/coronavirus-relief-options/economic-injury-disaster-loan-emergency-advance) related to the disaster. Similarly, PPP is economic injury as opposed to physical damage. 
+
+There is a downside for choosing EIDL loans over content. Specifically, we will likely be underestimating the total amount due to the stringency of the program under normal cirsumtances compared to PPP. Currently, the SBA has loosened firm eligibility making it easier for firms to get lending and larger loans. This will be a potential liability in our model.
 
 **Exploration of Predictor Variables**
 
@@ -485,21 +505,21 @@ We think it would be good to have a couple options to help see which might help 
 
 - CART Decision Tree: We believe this will likely be our best algorithm for the complexity of the models we are using. We also think it provides the best ease of understanding for our audience. While there are many versions of tree-based algorithms, we think the [Classification and Regression Tree (CART)](https://bradleyboehmke.github.io/HOML/DT.html), makes the most sense since many of our variables are numeric and discreate. Since we are also using total and averaged loan sizes across county, the basic function of how trees create subgroups via an averaged response should make the algorithm more accurate for our dataset. 
 
-- Linear Regression: We also felt it was important to include a baseline algorithm like linear regression. First, it's easy to understand when explaining our findings. That said, there are likely downsides to this model. It is likely our data is not linear in any form. Moroever, we would likely need to incldue further dummy variables to account for the non-linearity. Nonetheless, we think it's important to include if for no other reason than an easily-explainable baseline.
+- Linear Regression: We also felt it was important to include a baseline algorithm like linear regression. First, it's easy to understand when explaining our findings. That said, there are likely downsides to this model. It is likely our data is not linear in any form. Moreover, we would likely need to include further dummy variables to account for the non-linearity. Nonetheless, we think it's important to include if for no other reason than an easily explainable baseline.
 
-- Random Forests: We also wanted to explore a more robust version of decision trees, with a random forest algorithm. We understand this algorithym should be [easy to use out-of-the-box](https://bradleyboehmke.github.io/HOML/random-forest.html), but we need to further understand some of our missing values and their releationship to the data since the algorithm won't work with missing values.
+- Random Forests: We also wanted to explore a more robust version of decision trees, with a random forest algorithm. We understand this algorithm should be [easy to use out-of-the-box](https://bradleyboehmke.github.io/HOML/random-forest.html), but we need to further understand some of our missing values and their relationship to the data since the algorithm won't work with missing values.
 
 **Testing Two Models**
 
-After exploring the data further we have a two diffeferent potential model formulas to test:
+After exploring the data further, we have two different potential model formulas to test:
 
-- Average County EIDL Loan as a function of: average county verified content loan, employees, annual payroll, total recepits, payroll in the first quarter, number of establishments in its jursdiction, cases of COVID-19, and deaths from COVID-19. We are assuming that this will be a top 1% disaster, triggering the Michael Bay effect. [avg_county_eidl_loan ~ avg_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect]
+- Average County EIDL Loan as a function of: average county verified content loan, employees, annual payroll, total receipts, payroll in the first quarter, number of establishments in its jurisdiction, cases of COVID-19, and deaths from COVID-19. We are assuming that this will be a top 1% disaster, triggering the Michael Bay effect. [avg_county_eidl_loan ~ avg_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect]
 
-- Total County EIDL Loan as a function of: total county verified content loan, employees, annual payroll, total recepits, payroll in the first quarter, number of establishments in its jursdiction, cases of COVID-19, and deaths from COVID-19. We are assuming that this will be a top 1% disaster, triggering the Michael Bay effect. [total_county_eidl_loan ~ total_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect]
+- Total County EIDL Loan as a function of total county verified content loan, employees, annual payroll, total receipts, payroll in the first quarter, number of establishments in its jurisdiction, cases of COVID-19, and deaths from COVID-19. We are assuming that this will be a top 1% disaster, triggering the Michael Bay effect. [total_county_eidl_loan ~ total_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect]
 
 **Missing Values**
 
-As mentioned earlier, it is important to consider the missing values in our data set. This is important since the random forest algorithm will require it but also how NAs will imapct on our other models. We will quickly subset our data to the variables of interest and create a sample of 50,000 observations so running tests is managable. 
+As mentioned earlier, it is important to consider the missing values in our data set. This is important since the random forest algorithm will require it but also how NAs will impact on our other models. We will quickly subset our data to the variables of interest and create a sample of 50,000 observations so running tests is manageable.
 
 ```{r checking on missing values}
 #to get a subset for missing visualizations
@@ -519,12 +539,11 @@ It looks like we only have significant missing values in our first quarter payro
 gg_miss_upset(sba_merged_model) #checking about relationship between the variables
 ```
 
-As the earlier graph indicated a lot of the data's missing values are within the covid-related data and the payroll for the first quarter. While there is some relationship across the missing values we feel confident it isn't going to grealy impact the estimations of the models nor remove incredibly useful information from our estimations. 
+As the earlier graph indicated a lot of the data's missing values are within the covid-related data and the payroll for the first quarter . While there is some relationship across the missing values, we feel confident it isn't going to greatly impact the estimations of the models nor remove incredibly useful information from our estimations since it wasn't an available prodcut of Census in 2007.
 
 ### Pre-Processing: 
 
-- formatting dependent variables:
-  * As mentioend earlier most of our dependent variable will be transformed with a `step_log()` command. these include our number of employees, annual payroll, number of estabilishment, payroll for the first quarter, and the firms revenue and sales. COVID cases and deaths as well as our Michael Bay factor will not be transormed. We have also included a command to offset the values due numerous observations in all variables equal to zero.
+- As mentioned earlier most of our dependent variable will be transformed with a `step_log()` command. these include our number of employees, annual payroll, number of estabilishment, payroll for the first quarter, and the firm’s revenue and sales. COVID cases and deaths as well as our Michael Bay factor will not be transormed. We have also included a command to offset the values due numerous observations in all variables equal to zero.
   
 ```{r pre-process for models}
 #pre-process for CART and linear:
@@ -544,7 +563,7 @@ SBA_resamples <- vfold_cv(data = SBA_train,
 
 ### Error Term:
 
-When comparing models, we elected to use Root Mean Squared Error (RMSE) to estimate model error. RMSE was chosen because of its flexibility for both CART and linear regression. RMSE also weighs outliers more heavily, and since this economic criss is, by defintion, an outlier - we think it is important to base our model's estimations that incorporate outlier observations.
+When comparing models, we elected to use Root Mean Squared Error (RMSE) to estimate model error. RMSE was chosen because of its flexibility for both CART and linear regression. RMSE also weighs outliers more heavily, and since this economic crisis is, by definition, an outlier - we think it is important to base our model's estimations on an error term more influenced by outlier observations.
 
 ### Testing Models in Resampling for CART and Linear algorithms:
 
@@ -552,7 +571,7 @@ We will be testing four specific models for each of the two formulas and each of
 - Averaged CART
 - Total CART
 - Averaged Linear
-- Total Linear 
+- Total Linear
 
 ```{r linear and CART regression algorithm, warning = F}
 #Comparing RMSE across our two formulas and two algorithms:
@@ -581,12 +600,14 @@ SBA_resamples <- SBA_resamples %>%
 ```
 
 We will first want to look across the ten folds:
+
 ```{r across resamples}
 SBA_resamples %>%
   select(id, rmse_CARTavg, rmse_linearavg, rmse_CARTtotal, rmse_lineartotal)
 ```
 
 As well as look at the mean of the resamples:
+
 ```{r mean of resamples}
 SBA_resamples %>%
   summarize(mean(rmse_linearavg),
@@ -595,32 +616,20 @@ SBA_resamples %>%
             mean(rmse_lineartotal))
 ```
 
-It's clear from this model that our **Averaged CART** does the best job among the four mdoel options. This tracks with our intuition: this is a complex model with many variables and is more naturally sutied to a decision tree model than a simple linear model. Taking this logic one step further we attempted to run a random forests model to further reduce RMSE. 
+It's clear from this model that our **Averaged CART** does the best job among the four model options. This tracks with our intuition: this are a complex model with many variables and is more naturally suited to a decision tree model than a simple linear model. Taking this logic one step further we attempted to run a random forests model to further reduce RMSE. 
 
-**Random Forest Test**
+**SAMPLE Random Forest Test**
 
-``` {r setting seed and splitting into training and testing}
-#pre-process:
-set.seed(seed = 20200428)
-
-sba_merged_model_rf <- sba_merged_final %>%
- select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
-  na.omit(sba_merged_model_rf) %>%
-  sample_n(50000)
-
-split_rf <- initial_split(sba_merged_model_rf, prop = 0.80)
-SBA_train_rf <- training(split_rf)
-SBA_test_rf <- testing(split_rf)
-```
+We wanted to try our hand at a random forest algorithm but couldn't process it across folds in a resample so supplied two instances against the trainingt dataset.
 
 ```{r RandomForest algorithm for avg_county_eidl_loan}
-n_features <- length(setdiff(names(SBA_train_rf), "avg_county_eidl_loan"))
+n_features <- length(setdiff(names(SBA_train), "avg_county_eidl_loan"))
 
 sba_rf_avg <- ranger(
   formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
                                           emp + payann + rcptot + payqrt1 + estab + covid_cases + 
                                           covid_deaths + MBay_effect,
-  data = SBA_train_rf,
+  data = SBA_train,
   num.tree = n_features*10,
   mtry = floor(n_features / 3),
   respect.unordered.factors = "order",
@@ -633,13 +642,13 @@ sba_rf_avg <- ranger(
 We can see that across the training set, that our averaged random forest does better than most.
 
 ```{r RandomForest algorithm for total_county_eidl_loan}
-n_features1 <- length(setdiff(names(SBA_train_rf), "total_county_eidl_loan"))
+n_features1 <- length(setdiff(names(SBA_train), "total_county_eidl_loan"))
 
 sba_rf_total <- ranger(
   formula = total_county_eidl_loan ~ total_county_verified_content_loan + 
                                           emp + payann + rcptot + payqrt1 + estab + covid_cases + 
                                           covid_deaths + MBay_effect,
-  data = SBA_train_rf,
+  data = SBA_train,
   num.tree = n_features1*10,
   mtry = floor(n_features1 / 3),
   respect.unordered.factors = "order",
@@ -651,7 +660,7 @@ sba_rf_total <- ranger(
 
 It also appears that random forest for total does better compared to other totals across the training data.
 
-The random forests model decreased the RMSE and produced a better model than CART. However, due to our computational limitations, we were not able to explore random forests further as part of this analysis.
+The random forests model decreased the RMSE and produced a better model than CART. However, due to our computational limitations, we were not able to explore random forests further as part of this analysis, which as you will see is an area of improvement we think very worthwhile.
 
 Hence, we elected to go with average county EIDL loan via CART as our preferred final model for testing.
 
@@ -696,27 +705,27 @@ final_rmse
 
 ```
 
-As we can see from the final output there has been a slight uptick in the RMSE when running our model through our testing data. Our estimate becomes approximately $12,000 less accurate in predicting what EIDL loan sizes would be from natural disasters. We believe this isn't a terrible conclusion but believe there are areas of improvement, which we will discuss later.
+As we can see from the final output there has been a slight uptick in the RMSE when running our model through our testing data. Our estimate becomes approximately $12,000 less accurate in predicting what EIDL loan sizes would be from natural disasters. We believe this isn't a terrible conclusion but believe it clearly points to areas of improvement, which we will discuss later.
 
 **Bias - Variance Tradeoff**
-We believe it is important to note at this point that our current model is likley of low-bias and high variance, which is probably an okay place to arrive given the algorithm of choice. Again, we will discuss areas of improvement later.
+We believe it is important to note at this point that our current model is likely of low-bias and high variance, which is probably an okay place to arrive given the algorithm of choice. Again, we will discuss areas of improvement later.
 
 ## Applying Model to Current Crisis:
 
 **Unfortunately Don't Have Current Data:**
 
-As of this writing, the SBA has yet to release data related to the PPP. Once that data is available, we can compare that against our model to see how effetive it would have been.
+As of this writing, the SBA has yet to release data related to the PPP. It was hoped that as we began this project it would be available but we're still in the waiting phase. Once that data is available, we can compare that against our model to see how effective it would have been.
 
 **Still Upsides to the Model**
 
-Having a model like this available to policymakers as they craft policy with as much as uncertainty as PPP would enable better policy outcomes and proper funding of programs, eliminating situtations similar to the one faced at the outset of this program. Moreover, we believe the creation of the Michael Bay effect could help to engingeer a stronger prediction in future data, since we can in short tweak the variable to anticipate how much of an outlier the coronavirus pandemic has been. In short, we could try to predict what loan sizes would be had Harvey, Maria, or Sandy hit the entire country as opposed to specific states.
+Having a model like this available to policymakers as they craft policy with as much as uncertainty as PPP would enable better policy outcomes and proper funding of programs, eliminating situations similar to the one faced at the outset of this program. Moreover, we believe the creation of the Michael Bay effect could help to engineer a stronger prediction in future data, since we can in short tweak the variable to anticipate how much of an outlier the coronavirus pandemic has been. In short, we could try to predict what loan sizes would be had Harvey, Maria, or Sandy hit the entire country as opposed to specific states.
 
 ## Areas of Improvement:
 
-We believe the first attempt at the model was sufficient but as noted there are areas where it can be great improved. First would be to consider a more aggegated variable for prediction. While EIDL were more aligned by need, as a loan, underestimate the need and account for a smaller portion of natural disaster funding. Content Loans could have perhaps proven a better fit and would be the first place to start given the Federal Reserve has indicated that [40% of 7(a) SBA disaster funding](https://www.fedsmallbusiness.org/survey/2018/report-on-disaster-affected-firms) is accounted by revenue loss and not physical property damage. 
+We believe the first attempt at the model was sufficient but as noted there are areas where it can be great improved. First would be to consider a more aggregated variable for prediction. While EIDL were more aligned by need, as a loan, underestimate the need and account for a smaller portion of natural disaster funding. Content Loans could have perhaps proven a better fit and would be the first place to start given the Federal Reserve has indicated that [40% of 7(a) SBA disaster funding](https://www.fedsmallbusiness.org/survey/2018/report-on-disaster-affected-firms) is accounted by revenue loss and not physical property damage. 
 
-Moreover, there are likely errors in the data wrangling which could further account for less accurate data. With more time, accounting for those errors would make for a more accurate model. The same goes for handling missing information. Instead of ommitting the data, we could go back and imput the missing data with machine learning models, although that would require significant more time and thought. 
+Moreover, there are likely errors in the data wrangling which could further account for less accurate data. With more time, accounting for those errors would make for a more accurate model. The same goes for handling missing information. Instead of omitting the data, we could go back and impute the missing data with machine learning models, although that would require significant more time and thought. 
 
-Lastly, related to our attempt to balance or model's bias - variance trade off, we could further understand other algorithm options - like we tried with random forests - and further tune and dial the paremeters to understand the optimal arrangement for nodes, and subgroups in our decision tree models and other counfounding variables in our linear regression - we are sure we are missing some dummy variables that are important. It is important to note, that while we recognize the need for further balancing, given the implicit challenge at predicting current data on historical that balancing challenge will always exisit.
+Lastly, related to our attempt to balance or model's bias - variance trade off, we could further understand other algorithm options - like we tried with random forests - and further tune and dial the parameters to understand the optimal arrangement for nodes, and subgroups in our decision tree models and other confounding variables in our linear regression - we are sure we are missing some dummy variables that are important. It is important to note, that while we recognize the need for further balancing, given the implicit challenge at predicting current data on historical that balancing challenge will always exist.
 
 Nonetheless, we feel proud of the work presented here and hope that the SBA will release PPP data soon, thus allowing us to really see how well our model performed.
