@@ -34,7 +34,6 @@ source("R/model_CART_avg.R")
 source("R/model_linear_avg.R")
 source("R/model_CART_total.R")
 source("R/model_linear_total.R")
-source("R/sba_rf_avg.R")
 ```
 
 ##Project Overview:
@@ -389,7 +388,7 @@ MBay_effect = ifelse(sba_2017$`SBA Disaster Number`%in% x, 1 ,0))
 ```{r checking out correlation}
 #Finding correlation
 sba_corr <- sba_merged_final %>%
-  select(`Total Verified Loss`, `Verified Loss Content`, `Total Approved Loan Amount`, `Approved Amount Content`, `Approved Amount EIDL`, covid_cases, covid_deaths, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, total_county_eidl_loan, avg_county_eidl_loan, MBay_effect, emp, payann, rcptot, payqrt1, estab)
+  select(total_county_eidl_loan, avg_county_eidl_loan, total_county_approved_content_loan, total_county_verified_content_loan, avg_county_approved_content_loan, avg_county_verified_content_loan, MBay_effect, emp, payann, rcptot, payqrt1, estab, covid_cases, covid_deaths)
 
 cor(na.omit(sba_corr))
 ```
@@ -498,28 +497,10 @@ Model formulas:
 
 - total_county_eidl_loan ~ total_county_verified_content_loan + emp + payann + rcptot + payqrt1 + estab + covid_cases + covid_deaths + MBay_effect
 
-
-``` {r setting seed and splitting into training and testing}
-#pre-process:
-sba_merged_model_rf <- SBA_merged_imputed %>%
- select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
-  sample_n(50000)
-
-sba_merged_model_rf <- na.omit(sba_merged_model_rf)
-
-set.seed(seed = 20200428)
-
-split_rf <- initial_split(sba_merged_model_rf, prop = 0.80)
-SBA_train_rf <- training(split_rf)
-SBA_test_rf <- testing(split_rf)
-```
-
-```{r pre-process for CART and linear:}
+```{r pre-process for CART and linear}
 #pre-process for CART and linear:
-sba_merged_model <- SBA_merged_imputed %>%
- select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) 
-
-sba_merged_model <- na.omit(sba_merged_model) %>%
+sba_merged_model <- sba_merged_final %>%
+ select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
   sample_n(50000) 
 
 set.seed(seed = 20200428)
@@ -559,55 +540,75 @@ SBA_resamples <- SBA_resamples %>%
     
   
 SBA_resamples %>%
-  select(id, rmse_CART1, rmse_linear1, rmse_CART2, rmse_linear2)
+  select(id, rmse_CARTavg, rmse_linearavg, rmse_CARTtotal, rmse_lineartotal)
                         
-SBA_resamples1 %>%
-  pivot_longer(-id) %>%
-  ggplot(aes(x = id, 
-             y = value,
-             color = name,
-             group = name)) +
-    geom_point() +
-  geom_line() +
-  scale_y_continuous(limits = c(0, NA))
+#SBA_resamples %>%
+#  pivot_longer(-id) %>%
+#  ggplot(aes(x = id, 
+#             y = value,
+#             color = name,
+#             group = name)) +
+#    geom_point() +
+#  geom_line() +
+#  scale_y_continuous(limits = c(0, NA))
 
 SBA_resamples %>%
-  summarize(mean(rmse_linear1),
-            mean(rmse_CART1),
-            mean(rmse_CART2),
-            mean(rmse_linear2))
+  summarize(mean(rmse_linearavg),
+            mean(rmse_CARTavg),
+            mean(rmse_CARTtotal),
+            mean(rmse_lineartotal))
 
+```
+clear that the averages with CART do better. I'd bet that random forests would do even better. 
+
+``` {r setting seed and splitting into training and testing}
+#pre-process:
+sba_merged_model_rf <- SBA_merged_final %>%
+ select(avg_county_eidl_loan, total_county_eidl_loan, total_county_verified_content_loan, payann, payqrt1, emp, estab, rcptot, MBay_effect, covid_cases, covid_deaths) %>%
+  sba_merged_model_rf <- na.omit(sba_merged_model_rf)
+  sample_n(50000)
+
+set.seed(seed = 20200428)
+
+split_rf <- initial_split(sba_merged_model_rf, prop = 0.80)
+SBA_train_rf <- training(split_rf)
+SBA_test_rf <- testing(split_rf)
 ```
 
 ```{r RandomForest algorithm for avg_county_eidl_loan}
 n_features <- length(setdiff(names(SBA_train_rf), "avg_county_eidl_loan"))
 
-sba_rf <- ranger(
+sba_rf_avg <- ranger(
   formula = avg_county_eidl_loan ~ total_county_verified_content_loan + 
                                           emp + payann + rcptot + payqrt1 + estab + covid_cases + 
                                           covid_deaths + MBay_effect,
   data = SBA_train_rf,
+  num.tree = n_features*10,
   mtry = floor(n_features / 3),
   respect.unordered.factors = "order",
   seed = 20200428
 )
 
-(default_rmse <- sqrt(sba_rf$prediction.error))
+(avg_rmse <- sqrt(sba_rf_avg$prediction.error))
 ```
 
 ```{r RandomForest algorithm for total_county_eidl_loan}
-n_features <- length(setdiff(names(SBA_train_rf), "total_county_eidl_loan"))
+n_features1 <- length(setdiff(names(SBA_train_rf), "total_county_eidl_loan"))
 
-sba_rf <- ranger(
+sba_rf_total <- ranger(
   formula = total_county_eidl_loan ~ total_county_verified_content_loan + 
                                           emp + payann + rcptot + payqrt1 + estab + covid_cases + 
                                           covid_deaths + MBay_effect,
   data = SBA_train_rf,
-  mtry = floor(n_features / 3),
+  num.tree = n_features1*10,
+  mtry = floor(n_features1 / 3),
   respect.unordered.factors = "order",
   seed = 20200428
 )
 
-(default_rmse <- sqrt(sba_rf$prediction.error))
+(total_rmse <- sqrt(sba_rf_total$prediction.error))
 ```
+
+How to calculate PPP loans: 
+https://www.sba.gov/sites/default/files/2020-04/How-to-Calculate-Loan-Amounts.pdf
 
