@@ -24,7 +24,7 @@ Having a model like this available to policymakers as they craft policy with as 
 
 
 ## Final Model
-* [Model Webpage](https://afclegg.github.io/final_project_repo/final.project1)
+* [Model Webpage](https://collinsrd.github.io/final_project_repo/final.project1)
 This page also includes a more thorough explanation of the model and the parameters chosen.
 
 ## PPP Resources
