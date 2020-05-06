@@ -267,7 +267,7 @@ As mentioned earlier for our predictor variables originate from the [Economic Ce
 
 - Sales or Revenue: This variable is important particularly for SBA content and EIDL loans where the firm needs to prove a certain amount of economic injury. [A survery](https://www.fedsmallbusiness.org/survey/2018/report-on-disaster-affected-firms) by the Federal Reserve board found that in disaster-related lending that forgone revenues (not assets) were the largest source of loss.
 
-```{r reading and merging in Economic Census data from Census API, waring = F}
+```{r reading and merging in Economic Census data from Census API, warning = F}
 #2012 and 2007 include all the relevent NAICS data so will use for both dataframes
 NAICS0712 <- c("23", "31-33", "42", "44-45", "53", "54", "56", "62", "72", "81")
 
